@@ -12,10 +12,10 @@ Una aplicación de gestión financiera personal desarrollada en **Flutter** que 
 
 | Módulo | Descripción |
 | :--- | :--- |
-| **Gestión de Cuentas** | - Registro de cuentas bancarias y tarjetas de crédito.\<br\>- Visualización de saldos y movimientos.\<br\>- Organización de cuentas por tipo. |
-| **Control de Gastos e Ingresos** | - Registro detallado de transacciones.\<br\>- Categorización de movimientos.\<br\>- Historial completo con búsqueda y filtros. |
-| **Recordatorios y Pagos** | - Programación de recordatorios de pago.\<br\>- Alertas de vencimientos.\<br\>- Seguimiento de pagos recurrentes. |
-| **Presupuestos y Metas** | - Establecimiento de presupuestos por categoría.\<br\>- Seguimiento de gastos vs. presupuesto.\<br\>- Definición de metas de ahorro. |
+| **Gestión de Cuentas** | - Registro de cuentas bancarias y tarjetas de crédito. **Visualización de saldos y movimientos.** Organización de cuentas por tipo. |
+| **Control de Gastos e Ingresos** | - Registro detallado de transacciones. **Categorización de movimientos.** Historial completo con búsqueda y filtros. |
+| **Recordatorios y Pagos** | - Programación de recordatorios de pago. **Alertas de vencimientos.** Seguimiento de pagos recurrentes. |
+| **Presupuestos y Metas** | - Establecimiento de presupuestos por categoría. **Seguimiento de gastos vs. presupuesto.** Definición de metas de ahorro. |
 
 -----
 
