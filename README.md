@@ -93,7 +93,3 @@ Si tienes alguna pregunta, sugerencia o necesitas ayuda, no dudes en:
   * Contactarme directamente.
 
 -----
-
-Espero que esta versión te sirva. La tabla en la sección de "Características" y los bloques de código hacen que la información sea más fácil de digerir.
-
-¿Hay alguna otra sección que te gustaría ajustar o añadir?
