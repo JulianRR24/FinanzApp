@@ -1,5 +1,17 @@
 // 📦 main.dart - App completa reestructurada con un diseño moderno y minimalista
 // Todo el código original está aquí, reorganizado para mayor claridad y con una nueva UI.
+// Se han añadido funcionalidades para la gestión de finanzas de hogar en pareja.
+//
+// -----------------------------------------------------------------------------
+//  NOTA DE ACTUALIZACIÓN:
+//  - SECCIÓN 2: Se mejoró la visualización y copia de datos de tarjetas.
+//    Se cambió el teclado de cuentas asociadas.
+//  - SECCIÓN 3: Se implementó un orden de cuentas global en toda la app.
+//  - SECCIÓN 4: Se corrigió la actualización en tiempo real en Finanzas Hogar.
+//  - SECCIÓN 5: Se rediseñó la pantalla de Presupuestos para incluir una
+//    pestaña de "Hogar" junto a la de "Personal", con lógica de aportes.
+//  - SECCIÓN 6: Se aplicaron optimizaciones generales y mejoras de código.
+// -----------------------------------------------------------------------------
 
 import 'dart:convert';
 import 'dart:io';
@@ -17,6 +29,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Formateador de moneda global para toda la aplicación
+// Global currency formatter for the entire application
 final formatoMoneda = NumberFormat.currency(
   locale: 'es_CO',
   symbol: '\$',
@@ -24,13 +37,15 @@ final formatoMoneda = NumberFormat.currency(
 );
 
 //==============================================================================
-// 🎨 SECCIÓN DE TEMA Y ESTILOS GLOBALES
+// 🎨 THEME AND GLOBAL STYLES SECTION
 //==============================================================================
 
 class TemaApp {
   static const Color _colorPrimario = Color(0xFF00897B); // Teal oscuro
   static const Color _colorAcentoClaro = Color(0xFF4DB6AC); // Teal claro
-  static const Color _colorAcentoOscuro = Color(0xFF80CBC4); // Teal más claro para modo oscuro
+  static const Color _colorAcentoOscuro = Color(
+    0xFF80CBC4,
+  ); // Teal más claro para modo oscuro
   static const Color _colorError = Color(0xFFD32F2F);
   static const Color _colorAdvertencia = Color(0xFFFFA000);
 
@@ -81,7 +96,9 @@ class TemaApp {
         style: ElevatedButton.styleFrom(
           backgroundColor: _colorPrimario,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
@@ -156,7 +173,9 @@ class TemaApp {
         style: ElevatedButton.styleFrom(
           backgroundColor: _colorAcentoOscuro,
           foregroundColor: const Color(0xFF121212),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
         ),
@@ -186,7 +205,7 @@ class TemaApp {
 }
 
 //==============================================================================
-// 🚀 SECCIÓN PRINCIPAL DE LA APP (main, MyApp)
+// 🚀 MAIN APP SECTION (main, MyApp)
 //==============================================================================
 
 void main() async {
@@ -194,28 +213,31 @@ void main() async {
   final directorioAppDoc = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(directorioAppDoc.path);
 
+  // Opening all Hive boxes
   // Apertura de todas las cajas de Hive
   await Hive.openBox('debitos');
-  await Hive.openBox('bancos'); // Renombrado de 'accounts'
-  await Hive.openBox('movimientos'); // Renombrado de 'transactions'
-  await Hive.openBox('notas'); // Renombrado de 'notes'
-  await Hive.openBox('ajustes'); // Renombrado de 'settings'
-  await Hive.openBox('metas'); // Renombrado de 'goals'
+  await Hive.openBox('bancos');
+  await Hive.openBox('movimientos');
+  await Hive.openBox('notas');
+  await Hive.openBox('ajustes');
+  await Hive.openBox('metas');
+  await Hive.openBox('metasHogar'); // NUEVA CAJA: Metas del Hogar
   await Hive.openBox('cuentasUVT');
   await Hive.openBox('uvtValoresIniciales');
   await Hive.openBox('bienesUVT');
   await Hive.openBox('fechaDeclaracionUVT');
   await Hive.openBox('categorias');
   await Hive.openBox('uvt');
-  await Hive.openBox('recordatorios'); // Nueva caja para recordatorios
+  await Hive.openBox('recordatorios');
+  await Hive.openBox('finanzasHogar'); // NUEVA CAJA: Datos del Hogar
 
   await initializeDateFormatting('es', null);
   await ejecutarDebitosAutomaticos();
 
-  runApp(const MiApp()); // Renombrado de MyApp
+  runApp(const MiApp());
 }
 
-class MiApp extends StatelessWidget { // Renombrado de MyApp
+class MiApp extends StatelessWidget {
   const MiApp({super.key});
 
   @override
@@ -223,9 +245,9 @@ class MiApp extends StatelessWidget { // Renombrado de MyApp
     return MaterialApp(
       title: 'Finanzas Personales',
       debugShowCheckedModeBanner: false,
-      theme: TemaApp.temaClaro, // Renombrado de AppTheme.lightTheme
-      darkTheme: TemaApp.temaOscuro, // Renombrado de AppTheme.darkTheme
-      themeMode: ThemeMode.system, // Opciones: .light, .dark, .system
+      theme: TemaApp.temaClaro,
+      darkTheme: TemaApp.temaOscuro,
+      themeMode: ThemeMode.system,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -234,48 +256,49 @@ class MiApp extends StatelessWidget { // Renombrado de MyApp
       supportedLocales: const [
         Locale('es', ''), // Español
       ],
-      // Definición de rutas para una navegación más limpia
-      initialRoute: '/home', // Inicia directamente en la pantalla principal
+      initialRoute: '/home',
       routes: {
-        // '/': (context) => const EnvoltorioPermisos(), // Eliminada la pantalla de permisos
-        '/home': (context) => const PantallaInicio(), // Renombrado de HomeScreen
-        '/add_account': (context) => const PantallaAgregarCuenta(), // Renombrado de AddAccountScreen
-        '/add_transaction': (context) => const PantallaAgregarMovimiento(), // Renombrado de AddTransactionScreen
-        '/history': (context) => const PantallaHistorialMovimientos(), // Renombrado de TransactionHistoryScreen
-        '/notes': (context) => const PantallaNotas(), // Renombrado de NotesScreen
-        '/debits': (context) => const PantallaDebitos(), // Renombrado de DebitosScreen
-        '/budget': (context) => const PantallaPresupuesto(), // Renombrado de BudgetScreen
-        '/uvt_control': (context) => const PantallaControlUVT(), // Renombrado de ControlUVTScreen
-        '/backup': (context) => const PantallaCopiaSeguridad(), // Renombrado de BackupScreen
-        '/debug': (context) => const PantallaDepuracionHive(), // Renombrado de HiveDebugScreen
-        '/reminders': (context) => const PantallaRecordatorios(), // Nueva ruta para recordatorios
+        '/home': (context) => const PantallaInicio(),
+        '/add_account': (context) => const PantallaAgregarCuenta(),
+        '/add_transaction': (context) => const PantallaAgregarMovimiento(),
+        '/history': (context) => const PantallaHistorialMovimientos(),
+        '/notes': (context) => const PantallaNotas(),
+        '/debits': (context) => const PantallaDebitos(),
+        '/budget': (context) => const PantallaPresupuesto(),
+        '/uvt_control': (context) => const PantallaControlUVT(),
+        '/backup': (context) => const PantallaCopiaSeguridad(),
+        '/debug': (context) => const PantallaDepuracionHive(),
+        '/reminders': (context) => const PantallaRecordatorios(),
+        // NUEVA RUTA PARA FINANZAS HOGAR
+        '/finanzas_hogar': (context) => const PantallaFinanzasHogar(),
       },
     );
   }
 }
 
 //==============================================================================
-// 🏠 PANTALLA PRINCIPAL (HomeScreen)
+// 🏠 HOME SCREEN
 //==============================================================================
 
-class PantallaInicio extends StatefulWidget { // Renombrado de HomeScreen
+class PantallaInicio extends StatefulWidget {
   const PantallaInicio({super.key});
 
   @override
-  EstadoPantallaInicio createState() => EstadoPantallaInicio(); // Renombrado de HomeScreenState
+  EstadoPantallaInicio createState() => EstadoPantallaInicio();
 }
 
-class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProviderStateMixin { // Renombrado de HomeScreenState
-  final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
+class EstadoPantallaInicio extends State<PantallaInicio>
+    with SingleTickerProviderStateMixin {
+  final cajaBancos = Hive.box('bancos');
 
   @override
   void initState() {
     super.initState();
-    sincronizarOrdenCuentas(); // Renombrado de syncOrdenCuentas
+    sincronizarOrdenCuentas();
   }
 
-  void sincronizarOrdenCuentas() { // Renombrado de syncOrdenCuentas
-    final cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
+  void sincronizarOrdenCuentas() {
+    final cajaAjustes = Hive.box('ajustes');
     final llavesActuales = cajaBancos.keys.cast<int>().toList();
     final ordenGuardado = cajaAjustes.get('ordenCuentas');
 
@@ -283,19 +306,23 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
       cajaAjustes.put('ordenCuentas', llavesActuales);
     } else {
       final orden = List<int>.from(ordenGuardado);
-      final llavesFaltantes = llavesActuales.where((k) => !orden.contains(k)).toList();
+      final llavesFaltantes = llavesActuales
+          .where((k) => !orden.contains(k))
+          .toList();
       if (llavesFaltantes.isNotEmpty) {
         cajaAjustes.put('ordenCuentas', [...orden, ...llavesFaltantes]);
       }
-      final llavesExistentes = orden.where((k) => llavesActuales.contains(k)).toList();
+      final llavesExistentes = orden
+          .where((k) => llavesActuales.contains(k))
+          .toList();
       if (llavesExistentes.length != orden.length) {
         cajaAjustes.put('ordenCuentas', llavesExistentes);
       }
     }
   }
 
-  Map<String, double> obtenerResumenMensual() { // Renombrado de getMonthlySummary
-    final cajaMovimientos = Hive.box('movimientos'); // Renombrado de txBox
+  Map<String, double> obtenerResumenMensual() {
+    final cajaMovimientos = Hive.box('movimientos');
     final ahora = DateTime.now();
     double ingresos = 0;
     double gastos = 0;
@@ -310,12 +337,18 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
         }
       }
     }
-    return {'ingresos': ingresos, 'gastos': gastos, 'balance': ingresos - gastos};
+    return {
+      'ingresos': ingresos,
+      'gastos': gastos,
+      'balance': ingresos - gastos,
+    };
   }
 
-  Map<int, double> _calcularTotalesDebitos() { // Renombrado de _calculateDebitTotals
+  Map<int, double> _calcularTotalesDebitos() {
     final cajaDebitos = Hive.box('debitos');
-    Map<int, double> totales = {for (var key in cajaBancos.keys) key as int: 0.0};
+    Map<int, double> totales = {
+      for (var key in cajaBancos.keys) key as int: 0.0,
+    };
 
     for (var debito in cajaDebitos.values) {
       final idCuenta = debito['cuentaId'];
@@ -327,8 +360,11 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
     return totales;
   }
 
-  double obtenerBalanceTotal() { // Renombrado de getTotalBalance
-    return cajaBancos.values.fold(0.0, (sum, acc) => sum + (acc['balance'] ?? 0.0));
+  double obtenerBalanceTotal() {
+    return cajaBancos.values.fold(
+      0.0,
+      (sum, acc) => sum + (acc['balance'] ?? 0.0),
+    );
   }
 
   @override
@@ -350,16 +386,16 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
         ],
       ),
       body: ValueListenableBuilder(
-        valueListenable: Hive.box('bancos').listenable(), // Renombrado de accounts
+        valueListenable: Hive.box('bancos').listenable(),
         builder: (context, Box box, _) {
-          sincronizarOrdenCuentas(); // Asegura el orden en cada rebuild // Renombrado de syncOrdenCuentas
-          final cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
-          final orden = List<int>.from(cajaAjustes.get('ordenCuentas', defaultValue: box.keys.cast<int>().toList()));
-          final ordenValido = orden.where((k) => box.containsKey(k)).toList();
-          final bancos = {for (var k in ordenValido) k: box.get(k)}; // Renombrado de accounts
+          sincronizarOrdenCuentas();
 
-          final totalesDebitos = _calcularTotalesDebitos(); // Renombrado de debitTotals
-          final bancosConDebitos = ordenValido.where((key) => (totalesDebitos[key] ?? 0.0) > 0).toList(); // Renombrado de accountsWithDebits
+          final accounts = getOrderedAccounts();
+
+          final totalesDebitos = _calcularTotalesDebitos();
+          final bancosConDebitos = accounts
+              .where((entry) => (totalesDebitos[entry.key] ?? 0.0) > 0)
+              .toList();
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -368,34 +404,39 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               children: [
-                const SizedBox(height: 8),
-                _construirTarjetaBalanceTotal(obtenerBalanceTotal()), // Renombrado de _buildTotalBalanceCard, getTotalBalance
                 const SizedBox(height: 16),
-                _construirTarjetaResumenMensual(obtenerResumenMensual()), // Renombrado de _buildMonthlySummaryCard, getMonthlySummary
+                _construirTarjetaBalanceTotal(obtenerBalanceTotal()),
+                const SizedBox(height: 16),
+                _construirTarjetaResumenMensual(obtenerResumenMensual()),
                 const SizedBox(height: 24),
-                _construirEncabezadoSeccion('Mis Cuentas', Icons.account_balance_wallet_outlined), // Renombrado de _buildSectionHeader
-                _construirListaCuentasReordenables(bancos), // Renombrado de _buildReorderableAccountList, accounts
+                _construirEncabezadoSeccion(
+                  'Mis Cuentas',
+                  Icons.account_balance_wallet_outlined,
+                ),
+                _construirListaCuentasReordenables(accounts),
                 const SizedBox(height: 24),
-                if (bancosConDebitos.isNotEmpty) ...[ // Renombrado de accountsWithDebits
-                  _construirEncabezadoSeccion('Próximos Débitos', Icons.event_repeat_outlined), // Renombrado de _buildSectionHeader
-                  _construirResumenDebitos(bancosConDebitos, totalesDebitos), // Renombrado de _buildDebitsSummary, accountsWithDebits, debitTotals
+                if (bancosConDebitos.isNotEmpty) ...[
+                  _construirEncabezadoSeccion(
+                    'Próximos Débitos',
+                    Icons.event_repeat_outlined,
+                  ),
+                  _construirResumenDebitos(bancosConDebitos, totalesDebitos),
                   const SizedBox(height: 24),
                 ],
-                // Nueva ficha de resumen para recordatorios
                 _construirTarjetaRecordatoriosProximos(),
                 const SizedBox(height: 24),
-                _construirTarjetaNotasRecientes(), // Renombrado de _buildRecentNotesCard
-                const SizedBox(height: 100), // Espacio para el FAB
+                _construirTarjetaNotasRecientes(),
+                const SizedBox(height: 100),
               ],
             ),
           );
         },
       ),
-      floatingActionButton: _construirDialVelocidad(), // Renombrado de _buildSpeedDial
+      floatingActionButton: _construirDialVelocidad(),
     );
   }
 
-  Widget _construirEncabezadoSeccion(String titulo, IconData icono) { // Renombrado de _buildSectionHeader
+  Widget _construirEncabezadoSeccion(String titulo, IconData icono) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
@@ -404,14 +445,16 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
           const SizedBox(width: 8),
           Text(
             titulo,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ],
       ),
     );
   }
 
-  Widget _construirTarjetaBalanceTotal(double balanceTotal) { // Renombrado de _buildTotalBalanceCard
+  Widget _construirTarjetaBalanceTotal(double balanceTotal) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -421,15 +464,17 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
             Text(
               'SALDO TOTAL',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              '\$${formatoMoneda.format(balanceTotal)}', // Renombrado de formatCurrency
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
+              formatoMoneda.format(balanceTotal),
+              style: Theme.of(
+                context,
+              ).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -437,7 +482,7 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
     );
   }
 
-  Widget _construirTarjetaResumenMensual(Map<String, double> resumen) { // Renombrado de _buildMonthlySummaryCard
+  Widget _construirTarjetaResumenMensual(Map<String, double> resumen) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -446,20 +491,40 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
           children: [
             Text(
               'Resumen de ${DateFormat.yMMMM('es').format(DateTime.now())}',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(height: 24),
-            _construirFilaResumen('Ingresos', resumen['ingresos']!, Colors.green.shade600), // Renombrado de _buildSummaryRow
-            _construirFilaResumen('Gastos', resumen['gastos']!, Colors.red.shade600), // Renombrado de _buildSummaryRow
+            _construirFilaResumen(
+              'Ingresos',
+              resumen['ingresos']!,
+              Colors.green.shade600,
+            ),
+            _construirFilaResumen(
+              'Gastos',
+              resumen['gastos']!,
+              Colors.red.shade600,
+            ),
             const Divider(height: 24),
-            _construirFilaResumen('Balance del Mes', resumen['balance']!, Theme.of(context).textTheme.bodyLarge!.color!, esNegrita: true), // Renombrado de _buildSummaryRow, isBold
+            _construirFilaResumen(
+              'Balance del Mes',
+              resumen['balance']!,
+              Theme.of(context).textTheme.bodyLarge!.color!,
+              esNegrita: true,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _construirFilaResumen(String titulo, double monto, Color color, {bool esNegrita = false}) { // Renombrado de _buildSummaryRow, isBold
+  Widget _construirFilaResumen(
+    String titulo,
+    double monto,
+    Color color, {
+    bool esNegrita = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -467,10 +532,10 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
         children: [
           Text(titulo, style: Theme.of(context).textTheme.bodyLarge),
           Text(
-            '\$${formatoMoneda.format(monto)}', // Renombrado de formatCurrency
+            formatoMoneda.format(monto),
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: color,
-                fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal
+              color: color,
+              fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
             ),
           ),
         ],
@@ -478,58 +543,87 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
     );
   }
 
-  Widget _construirListaCuentasReordenables(Map<int, dynamic> bancos) { // Renombrado de _buildReorderableAccountList, accounts
-    return ReorderableListView(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      onReorder: (indiceAntiguo, nuevoIndice) {
-        if (nuevoIndice > indiceAntiguo) nuevoIndice--;
-        final cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
-        final llavesVisibles = bancos.keys.toList();
-        final llaveMovida = llavesVisibles.removeAt(indiceAntiguo);
-        llavesVisibles.insert(nuevoIndice, llaveMovida);
-        cajaAjustes.put('ordenCuentas', llavesVisibles);
-        setState(() {});
-      },
-      children: bancos.entries.map((entrada) {
-        final cuenta = entrada.value; // Renombrado de acc
-        return Card(
-          key: ValueKey(entrada.key),
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(26), // ~10% opacity
-              child: Icon(Icons.account_balance, color: Theme.of(context).colorScheme.primary),
-            ),
-            title: Text(cuenta['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-            trailing: Text(
-              '\$${formatoMoneda.format(cuenta['balance'])}', // Renombrado de formatCurrency
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => PantallaEditarCuenta(llaveCuenta: entrada.key)), // Renombrado de EditAccountScreen, accountKey
-              ).then((_) => setState(() {}));
-            },
-          ),
-        );
-      }).toList(),
-    );
-  }
+  Widget _construirListaCuentasReordenables(
+  List<MapEntry<int, dynamic>> accounts,
+) {
+  return ReorderableListView(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    onReorder: (indiceAntiguo, nuevoIndice) {
+      if (nuevoIndice > indiceAntiguo) nuevoIndice--;
 
-  Widget _construirResumenDebitos(List<int> bancosConDebitos, Map<int, double> totalesDebitos) { // Renombrado de _buildDebitsSummary, accountsWithDebits, debitTotals
+      final llavesVisibles = accounts.map((e) => e.key).toList();
+      final llaveMovida = llavesVisibles.removeAt(indiceAntiguo);
+      llavesVisibles.insert(nuevoIndice, llaveMovida);
+
+      final cajaAjustes = Hive.box('ajustes');
+      cajaAjustes.put('ordenCuentas', llavesVisibles);
+      setState(() {});
+    },
+    children: accounts.asMap().entries.map((entry) {
+      final index = entry.key;
+      final cuenta = entry.value.value;
+      final llave = entry.value.key;
+      
+      return Card(
+        key: ValueKey('cuenta_${llave}_$index'),
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
+          leading: CircleAvatar(
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withAlpha(26),
+            child: Icon(
+              Icons.account_balance,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          title: Text(
+            cuenta['name'],
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          trailing: Text(
+            formatoMoneda.format(cuenta['balance']),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PantallaEditarCuenta(llaveCuenta: llave),
+              ),
+            ).whenComplete(() => setState(() {}));
+          },
+        ),
+      );
+    }).toList(),
+  );
+}
+
+  Widget _construirResumenDebitos(
+    List<MapEntry<int, dynamic>> bancosConDebitos,
+    Map<int, double> totalesDebitos,
+  ) {
     final cajaDebitos = Hive.box('debitos');
     return Column(
-      children: bancosConDebitos.map((key) {
-        final cuenta = cajaBancos.get(key); // Renombrado de acc, accountsBox
+      children: bancosConDebitos.map((entry) {
+        final key = entry.key;
+        final cuenta = entry.value;
         final totalDebitoCuenta = totalesDebitos[key]!;
         final balance = cuenta['balance'] as double;
         final suficiente = balance >= totalDebitoCuenta;
-        final colorEstado = suficiente ? Colors.green.shade600 : TemaApp._colorAdvertencia; // Renombrado de AppTheme._warningColor
+        final colorEstado = suficiente
+            ? Colors.green.shade600
+            : TemaApp._colorAdvertencia;
 
-        final debito = cajaDebitos.values.firstWhere((d) => d['cuentaId'] == key, orElse: () => null);
+        final debito = cajaDebitos.values.firstWhere(
+          (d) => d['cuentaId'] == key,
+          orElse: () => null,
+        );
         String diasRestantesTexto = '';
         if (debito != null && debito['proximaFecha'] != null) {
           final proximaFecha = DateTime.parse(debito['proximaFecha']);
@@ -543,20 +637,36 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
           }
         }
 
-
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 5),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             leading: CircleAvatar(
               backgroundColor: colorEstado.withAlpha(26),
-              child: Icon(suficiente ? Icons.check_circle_outline : Icons.warning_amber_rounded, color: colorEstado),
+              child: Icon(
+                suficiente
+                    ? Icons.check_circle_outline
+                    : Icons.warning_amber_rounded,
+                color: colorEstado,
+              ),
             ),
-            title: Text(cuenta['name'], style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text('Débitos: \$${formatoMoneda.format(totalDebitoCuenta)}$diasRestantesTexto'), // Renombrado de formatCurrency
+            title: Text(
+              cuenta['name'],
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Débitos: ${formatoMoneda.format(totalDebitoCuenta)}$diasRestantesTexto',
+            ),
             trailing: Text(
-              '\$${formatoMoneda.format(balance)}', // Renombrado de formatCurrency
-              style: TextStyle(color: colorEstado, fontWeight: FontWeight.w600, fontSize: 15),
+              formatoMoneda.format(balance),
+              style: TextStyle(
+                color: colorEstado,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
             ),
           ),
         );
@@ -564,30 +674,45 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
     );
   }
 
-  // Nuevo widget para la tarjeta de recordatorios
   Widget _construirTarjetaRecordatoriosProximos() {
     final cajaRecordatorios = Hive.box('recordatorios');
     final ahora = DateTime.now();
 
-    final recordatoriosConFechaProxima = cajaRecordatorios.toMap().entries.map((entrada) {
-      final recordatorio = entrada.value;
-      final proximaFecha = _calcularProximaFechaRecordatorio(recordatorio);
-      return MapEntry(entrada.key, {'data': recordatorio, 'proximaFecha': proximaFecha});
-    }).where((entrada) {
-      // Solo mostrar recordatorios cuya próxima fecha es futura o de hoy
-      return entrada.value['proximaFecha'] != null &&
-          (entrada.value['proximaFecha'] as DateTime).isAfter(ahora.subtract(const Duration(days: 1)));
-    }).toList();
+    final recordatoriosConFechaProxima = cajaRecordatorios
+        .toMap()
+        .entries
+        .map((entrada) {
+          final recordatorio = entrada.value;
+          final proximaFecha = _calcularProximaFechaRecordatorio(recordatorio);
+          return MapEntry(entrada.key, {
+            'data': recordatorio,
+            'proximaFecha': proximaFecha,
+          });
+        })
+        .where(
+          (entrada) =>
+              entrada.value['proximaFecha'] != null &&
+              (entrada.value['proximaFecha'] as DateTime).isAfter(
+                ahora.subtract(const Duration(days: 1)),
+              ),
+        )
+        .toList();
 
-    recordatoriosConFechaProxima.sort((a, b) =>
-        (a.value['proximaFecha'] as DateTime).compareTo(b.value['proximaFecha'] as DateTime));
+    recordatoriosConFechaProxima.sort(
+      (a, b) => (a.value['proximaFecha'] as DateTime).compareTo(
+        b.value['proximaFecha'] as DateTime,
+      ),
+    );
 
     if (recordatoriosConFechaProxima.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _construirEncabezadoSeccion('Próximos Recordatorios', Icons.alarm_on_outlined),
+        _construirEncabezadoSeccion(
+          'Próximos Recordatorios',
+          Icons.alarm_on_outlined,
+        ),
         Card(
           child: Column(
             children: [
@@ -595,10 +720,11 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
                 final recordatorio = entrada.value['data'];
                 final proximaFecha = entrada.value['proximaFecha'] as DateTime;
                 final diasRestantes = proximaFecha.difference(ahora).inDays;
-                final tieneValor = recordatorio['valor'] != null && recordatorio['valor'] > 0;
+                final tieneValor =
+                    recordatorio['valor'] != null && recordatorio['valor'] > 0;
 
                 Color colorIcono;
-                if (diasRestantes <= 0) { // Vencido o hoy
+                if (diasRestantes <= 0) {
                   colorIcono = TemaApp._colorError;
                 } else if (diasRestantes <= 7) {
                   colorIcono = TemaApp._colorAdvertencia;
@@ -620,9 +746,7 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    '${DateFormat('dd MMM y', 'es').format(proximaFecha)} '
-                        '${tieneValor ? ' - \$${formatoMoneda.format(recordatorio['valor'])}' : ''}'
-                        '${diasRestantes >= 0 ? ' (faltan $diasRestantes días)' : ' (Vencido)'}',
+                    '${DateFormat('dd MMM y', 'es').format(proximaFecha)} ${tieneValor ? ' - ${formatoMoneda.format(recordatorio['valor'])}' : ''}${diasRestantes >= 0 ? ' (faltan $diasRestantes días)' : ' (Vencido)'}',
                   ),
                   onTap: () => Navigator.pushNamed(context, '/reminders'),
                 );
@@ -631,7 +755,7 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/reminders'),
                   child: const Text('Ver todos los recordatorios'),
-                )
+                ),
             ],
           ),
         ),
@@ -639,32 +763,39 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
     );
   }
 
-  Widget _construirTarjetaNotasRecientes() { // Renombrado de _buildRecentNotesCard
-    final cajaNotas = Hive.box('notas'); // Renombrado de notesBox
+  Widget _construirTarjetaNotasRecientes() {
+    final cajaNotas = Hive.box('notas');
     final notasRecientes = cajaNotas.values.toList().reversed.take(3).toList();
-    if(notasRecientes.isEmpty) return const SizedBox.shrink();
+    if (notasRecientes.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _construirEncabezadoSeccion('Notas Recientes', Icons.edit_note_outlined), // Renombrado de _buildSectionHeader
+        _construirEncabezadoSeccion(
+          'Notas Recientes',
+          Icons.edit_note_outlined,
+        ),
         Card(
           child: Column(
             children: [
-              ...notasRecientes.map((nota) => ListTile( // Renombrado de note
-                title: Text(
-                  nota, // Renombrado de note
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color),
+              ...notasRecientes.map(
+                (nota) => ListTile(
+                  title: Text(
+                    nota,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodySmall?.color,
+                    ),
+                  ),
+                  onTap: () => Navigator.pushNamed(context, '/notes'),
                 ),
-                onTap: () => Navigator.pushNamed(context, '/notes'),
-              )),
-              if(cajaNotas.length > 3) // Renombrado de notesBox
+              ),
+              if (cajaNotas.length > 3)
                 TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/notes'),
-                    child: const Text('Ver todas las notas')
-                )
+                  onPressed: () => Navigator.pushNamed(context, '/notes'),
+                  child: const Text('Ver todas las notas'),
+                ),
             ],
           ),
         ),
@@ -672,7 +803,7 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
     );
   }
 
-  SpeedDial _construirDialVelocidad() { // Renombrado de _buildSpeedDial
+  SpeedDial _construirDialVelocidad() {
     return SpeedDial(
       icon: Icons.add,
       activeIcon: Icons.close,
@@ -683,19 +814,65 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
       spacing: 12,
       spaceBetweenChildren: 12,
       children: [
-        _construirHijoDialVelocidad(Icons.add_card_outlined, 'Registrar Movimiento', () => Navigator.pushNamed(context, '/add_transaction')), // Renombrado de _buildSpeedDialChild
-        _construirHijoDialVelocidad(Icons.account_balance_outlined, 'Agregar Cuenta', () => Navigator.pushNamed(context, '/add_account')), // Renombrado de _buildSpeedDialChild
-        _construirHijoDialVelocidad(Icons.event_repeat_outlined, 'Débitos Automáticos', () => Navigator.pushNamed(context, '/debits')), // Renombrado de _buildSpeedDialChild
-        _construirHijoDialVelocidad(Icons.alarm_on_outlined, 'Recordatorios', () => Navigator.pushNamed(context, '/reminders')), // Nuevo hijo para Recordatorios
-        _construirHijoDialVelocidad(Icons.pie_chart_outline, 'Presupuesto & Metas', () => Navigator.pushNamed(context, '/budget')), // Renombrado de _buildSpeedDialChild
-        _construirHijoDialVelocidad(Icons.assignment_outlined, 'Control UVT / DIAN', () => Navigator.pushNamed(context, '/uvt_control')), // Renombrado de _buildSpeedDialChild
-        _construirHijoDialVelocidad(Icons.backup_outlined, 'Copia de Seguridad', () => Navigator.pushNamed(context, '/backup'), color: Colors.blueGrey), // Renombrado de _buildSpeedDialChild
-        _construirHijoDialVelocidad(Icons.bug_report_outlined, 'Depurar Hive', () => Navigator.pushNamed(context, '/debug'), color: Colors.orange.shade800), // Renombrado de _buildSpeedDialChild
+        _construirHijoDialVelocidad(
+          Icons.add_card_outlined,
+          'Registrar Movimiento',
+          () => Navigator.pushNamed(context, '/add_transaction'),
+        ),
+        _construirHijoDialVelocidad(
+          Icons.account_balance_outlined,
+          'Agregar Cuenta',
+          () => Navigator.pushNamed(context, '/add_account'),
+        ),
+        // Botón para Finanzas Hogar
+        _construirHijoDialVelocidad(
+          Icons.home_work_outlined,
+          'Finanzas Hogar',
+          () => Navigator.pushNamed(context, '/finanzas_hogar'),
+          color: Colors.deepPurple,
+        ),
+        _construirHijoDialVelocidad(
+          Icons.event_repeat_outlined,
+          'Débitos Automáticos',
+          () => Navigator.pushNamed(context, '/debits'),
+        ),
+        _construirHijoDialVelocidad(
+          Icons.alarm_on_outlined,
+          'Recordatorios',
+          () => Navigator.pushNamed(context, '/reminders'),
+        ),
+        _construirHijoDialVelocidad(
+          Icons.pie_chart_outline,
+          'Presupuesto & Metas',
+          () => Navigator.pushNamed(context, '/budget'),
+        ),
+        _construirHijoDialVelocidad(
+          Icons.assignment_outlined,
+          'Control UVT / DIAN',
+          () => Navigator.pushNamed(context, '/uvt_control'),
+        ),
+        _construirHijoDialVelocidad(
+          Icons.backup_outlined,
+          'Copia de Seguridad',
+          () => Navigator.pushNamed(context, '/backup'),
+          color: Colors.blueGrey,
+        ),
+        _construirHijoDialVelocidad(
+          Icons.bug_report_outlined,
+          'Depurar Hive',
+          () => Navigator.pushNamed(context, '/debug'),
+          color: Colors.orange.shade800,
+        ),
       ],
     );
   }
 
-  SpeedDialChild _construirHijoDialVelocidad(IconData icono, String etiqueta, VoidCallback alTocar, {Color? color}) { // Renombrado de _buildSpeedDialChild, onTap
+  SpeedDialChild _construirHijoDialVelocidad(
+    IconData icono,
+    String etiqueta,
+    VoidCallback alTocar, {
+    Color? color,
+  }) {
     return SpeedDialChild(
       child: Icon(icono),
       label: etiqueta,
@@ -708,28 +885,28 @@ class EstadoPantallaInicio extends State<PantallaInicio> with SingleTickerProvid
 }
 
 //==============================================================================
-// ➕ PANTALLA PARA AGREGAR CUENTA (AddAccountScreen)
+// ➕ ADD ACCOUNT SCREEN
 //==============================================================================
 
-class PantallaAgregarCuenta extends StatefulWidget { // Renombrado de AddAccountScreen
+class PantallaAgregarCuenta extends StatefulWidget {
   const PantallaAgregarCuenta({super.key});
 
   @override
-  EstadoPantallaAgregarCuenta createState() => EstadoPantallaAgregarCuenta(); // Renombrado de AddAccountScreenState
+  EstadoPantallaAgregarCuenta createState() => EstadoPantallaAgregarCuenta();
 }
 
-class EstadoPantallaAgregarCuenta extends State<PantallaAgregarCuenta> { // Renombrado de AddAccountScreenState
-  final _claveFormulario = GlobalKey<FormState>(); // Renombrado de _formKey
-  final controladorNombre = TextEditingController(); // Renombrado de nameController
-  final controladorSaldo = TextEditingController(); // Renombrado de balanceController
+class EstadoPantallaAgregarCuenta extends State<PantallaAgregarCuenta> {
+  final _claveFormulario = GlobalKey<FormState>();
+  final controladorNombre = TextEditingController();
+  final controladorSaldo = TextEditingController();
 
-  void _guardarCuenta() async { // Renombrado de _saveAccount
+  Future<void> _saveAccount() async {
     if (_claveFormulario.currentState!.validate()) {
-      final nombre = controladorNombre.text.trim(); // Renombrado de nameController.text
-      final saldo = double.tryParse(controladorSaldo.text) ?? 0.0; // Renombrado de balanceController.text
+      final nombre = controladorNombre.text.trim();
+      final saldo = double.tryParse(controladorSaldo.text) ?? 0.0;
 
-      final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
-      final cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
+      final cajaBancos = Hive.box('bancos');
+      final cajaAjustes = Hive.box('ajustes');
 
       final nuevaLlave = await cajaBancos.add({
         'name': nombre,
@@ -738,9 +915,13 @@ class EstadoPantallaAgregarCuenta extends State<PantallaAgregarCuenta> { // Reno
         'linkedAccounts': [],
       });
 
-      final ordenActual = List<int>.from(cajaAjustes.get('ordenCuentas', defaultValue: []));
+      // Se añade la nueva cuenta al final del orden existente.
+      // The new account is added to the end of the existing order.
+      final ordenActual = List<int>.from(
+        cajaAjustes.get('ordenCuentas', defaultValue: []),
+      );
       ordenActual.add(nuevaLlave);
-      cajaAjustes.put('ordenCuentas', ordenActual);
+      await cajaAjustes.put('ordenCuentas', ordenActual);
 
       if (mounted) {
         Navigator.pop(context);
@@ -755,23 +936,36 @@ class EstadoPantallaAgregarCuenta extends State<PantallaAgregarCuenta> { // Reno
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
-          key: _claveFormulario, // Renombrado de _formKey
+          key: _claveFormulario,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
-                controller: controladorNombre, // Renombrado de nameController
-                decoration: const InputDecoration(labelText: 'Nombre de la Cuenta o Banco'),
-                validator: (valor) => (valor == null || valor.isEmpty) ? 'El nombre es obligatorio' : null, // Renombrado de value
+                controller: controladorNombre,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre de la Cuenta o Banco',
+                ),
+                validator: (valor) => (valor == null || valor.isEmpty)
+                    ? 'El nombre es obligatorio'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
-                controller: controladorSaldo, // Renombrado de balanceController
-                decoration: const InputDecoration(labelText: 'Saldo Inicial', prefixText: '\$ '),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: (valor) { // Renombrado de value
-                  if (valor == null || valor.isEmpty) return 'El saldo es obligatorio';
-                  if (double.tryParse(valor) == null) return 'Ingresa un número válido';
+                controller: controladorSaldo,
+                decoration: const InputDecoration(
+                  labelText: 'Saldo Inicial',
+                  prefixText: '\$ ',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                validator: (valor) {
+                  if (valor == null || valor.isEmpty) {
+                    return 'El saldo es obligatorio';
+                  }
+                  if (double.tryParse(valor) == null) {
+                    return 'Ingresa un número válido';
+                  }
                   return null;
                 },
               ),
@@ -779,8 +973,8 @@ class EstadoPantallaAgregarCuenta extends State<PantallaAgregarCuenta> { // Reno
               ElevatedButton.icon(
                 icon: const Icon(Icons.save_alt_outlined),
                 label: const Text('Guardar Cuenta'),
-                onPressed: _guardarCuenta, // Renombrado de _saveAccount
-              )
+                onPressed: _saveAccount,
+              ),
             ],
           ),
         ),
@@ -790,69 +984,111 @@ class EstadoPantallaAgregarCuenta extends State<PantallaAgregarCuenta> { // Reno
 }
 
 //==============================================================================
-// ✏️ PANTALLA PARA EDITAR CUENTA (EditAccountScreen)
+// ✏️ EDIT ACCOUNT SCREEN
 //==============================================================================
-class PantallaEditarCuenta extends StatefulWidget { // Renombrado de EditAccountScreen
-  final int llaveCuenta; // Renombrado de accountKey
-  const PantallaEditarCuenta({super.key, required this.llaveCuenta}); // Renombrado de accountKey
+class PantallaEditarCuenta extends StatefulWidget {
+  final int llaveCuenta;
+  const PantallaEditarCuenta({super.key, required this.llaveCuenta});
 
   @override
   EstadoPantallaEditarCuenta createState() => EstadoPantallaEditarCuenta();
 }
 
 class EstadoPantallaEditarCuenta extends State<PantallaEditarCuenta> {
-  final controladorNombre = TextEditingController(); // Renombrado de nameController
-  final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
-  late Map _cuenta; // Renombrado de _account
+  final controladorNombre = TextEditingController();
+  final cajaBancos = Hive.box('bancos');
+  late Map _cuenta;
+
+  // Mapa para rastrear el estado de visualización de cada tarjeta.
+  // Map to track the visibility state of each card.
+  final Map<int, bool> _mostrarDatosTarjeta = {};
 
   @override
   void initState() {
     super.initState();
-    _cargarDatosCuenta(); // Renombrado de _loadAccountData
+    _loadAccountData();
   }
 
-  void _cargarDatosCuenta() { // Renombrado de _loadAccountData
-    _cuenta = cajaBancos.get(widget.llaveCuenta); // Renombrado de accountKey
+  void _loadAccountData() {
+    _cuenta = Map.from(cajaBancos.get(widget.llaveCuenta));
     controladorNombre.text = _cuenta['name'];
   }
 
-  void _guardarCambios() { // Renombrado de _saveChanges
-    cajaBancos.put(widget.llaveCuenta, { // Renombrado de accountKey
-      'name': controladorNombre.text.trim(), // Renombrado de nameController.text
-      'balance': _cuenta['balance'],
-      'cards': _cuenta['cards'] ?? [],
-      'linkedAccounts': [],
-    });
+  // --- INICIO: FUNCIONES ACTUALIZADAS (SECCIÓN 2) ---
+
+  /// Formatea un número de tarjeta para mostrarlo con espacios cada 4 dígitos.
+  /// Formats a card number for display with spaces every 4 digits.
+  String _formatCardNumberForDisplay(String? number) {
+    if (number == null || number.isEmpty) return '';
+    number = number.replaceAll(' ', '');
+    String formatted = '';
+    for (int i = 0; i < number.length; i++) {
+      if (i > 0 && i % 4 == 0) {
+        formatted += ' ';
+      }
+      formatted += number[i];
+    }
+    return formatted;
+  }
+
+  /// Formatea un texto para mostrar solo los últimos 4 dígitos.
+  /// Formats text to show only the last 4 digits.
+  String _formatHiddenText(String? text, {int visibleDigits = 4}) {
+    if (text == null || text.isEmpty) return '';
+    if (text.length <= visibleDigits) return '•' * text.length;
+    return '•' * (text.length - visibleDigits) +
+        text.substring(text.length - visibleDigits);
+  }
+
+  /// Formatea un CVV para mostrar solo el último dígito.
+  /// Formats a CVV to show only the last digit.
+  String _formatHiddenCVV(String? cvv) {
+    if (cvv == null || cvv.isEmpty) return '';
+    if (cvv.length <= 1) return '•' * cvv.length;
+    return '•' * (cvv.length - 1) + cvv.substring(cvv.length - 1);
+  }
+
+  // --- FIN: FUNCIONES ACTUALIZADAS (SECCIÓN 2) ---
+
+  void _saveChanges() {
+    _cuenta['name'] = controladorNombre.text.trim();
+    cajaBancos.put(widget.llaveCuenta, _cuenta);
     if (mounted) {
       Navigator.pop(context);
     }
   }
 
-  void _eliminarCuenta() async { // Renombrado de _deleteAccount
-    final confirmado = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('¿Eliminar cuenta?'),
-          content: Text('Estás a punto de eliminar "${_cuenta['name']}". Esta acción no se puede deshacer.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            TextButton(
-                style: TextButton.styleFrom(foregroundColor: TemaApp._colorError), // Renombrado de AppTheme._errorColor
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Eliminar')
-            ),
-          ],
-        )
+  void _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Eliminar cuenta?'),
+        content: Text(
+          'Estás a punto de eliminar "${_cuenta['name']}". Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: TemaApp._colorError),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
     );
 
-    if(confirmado == true) {
-      cajaBancos.delete(widget.llaveCuenta); // Renombrado de accountKey
-      // Opcional: limpiar la key del orden de cuentas
-      final cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
-      final orden = List<int>.from(cajaAjustes.get('ordenCuentas', defaultValue: []));
-      orden.remove(widget.llaveCuenta); // Renombrado de accountKey
+    if (confirmed == true) {
+      cajaBancos.delete(widget.llaveCuenta);
+      final cajaAjustes = Hive.box('ajustes');
+      final orden = List<int>.from(
+        cajaAjustes.get('ordenCuentas', defaultValue: []),
+      );
+      orden.remove(widget.llaveCuenta);
       cajaAjustes.put('ordenCuentas', orden);
-      if(mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
     }
   }
 
@@ -863,121 +1099,261 @@ class EstadoPantallaEditarCuenta extends State<PantallaEditarCuenta> {
         title: const Text('Editar Cuenta'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: TemaApp._colorError), // Renombrado de AppTheme._colorError
+            icon: const Icon(Icons.delete_outline, color: TemaApp._colorError),
             tooltip: 'Eliminar Cuenta',
-            onPressed: _eliminarCuenta, // Renombrado de _deleteAccount
-          )
+            onPressed: _deleteAccount,
+          ),
         ],
       ),
       body: ValueListenableBuilder(
-          valueListenable: cajaBancos.listenable(keys: [widget.llaveCuenta]), // Renombrado de accountsBox, accountKey
-          builder: (context, box, _) {
-            _cargarDatosCuenta(); // Recargar datos por si cambian // Renombrado de _loadAccountData
-            final List tarjetas = _cuenta['cards'] ?? []; // Renombrado de cards
-            final List cuentasVinculadas = _cuenta['linkedAccounts'] ?? []; // Renombrado de linkedAccounts
+        valueListenable: cajaBancos.listenable(keys: [widget.llaveCuenta]),
+        builder: (context, box, _) {
+          if (!box.containsKey(widget.llaveCuenta)) {
+            // Si la cuenta fue eliminada, no intentar construir el widget.
+            // If the account was deleted, do not attempt to build the widget.
+            return const Center(child: Text("Esta cuenta ya no existe."));
+          }
+          _loadAccountData();
+          final List tarjetas = _cuenta['cards'] ?? [];
+          final List cuentasVinculadas = _cuenta['linkedAccounts'] ?? [];
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: <Widget>[
-                // --- Sección de Edición de Nombre ---
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextField(
-                          controller: controladorNombre, // Renombrado de nameController
-                          decoration: const InputDecoration(labelText: 'Nombre de la Cuenta'),
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: <Widget>[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: controladorNombre,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre de la Cuenta',
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _guardarCambios, // Renombrado de _saveChanges
-                          child: const Text('Guardar Nombre'),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _saveChanges,
+                        child: const Text('Guardar Nombre'),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // --- Sección de Tarjetas Guardadas ---
-                _construirEncabezadoSeccionEditable('Tarjetas Guardadas', Icons.credit_card_outlined, () async { // Renombrado de _buildSectionHeader
-                  final tarjeta = await Navigator.push<Map<String, String>>( // Renombrado de card
-                      context, MaterialPageRoute(builder: (_) => PantallaAgregarTarjeta())); // Renombrado de AddCardScreen
+              ),
+              const SizedBox(height: 24),
+              _buildEditableSectionHeader(
+                'Tarjetas Guardadas',
+                Icons.credit_card_outlined,
+                () async {
+                  final tarjeta = await Navigator.push<Map<String, String>>(
+                    context,
+                    MaterialPageRoute(builder: (_) => PantallaAgregarTarjeta()),
+                  );
                   if (tarjeta != null) {
-                    final tarjetasActualizadas = [...tarjetas, tarjeta]; // Renombrado de updatedCards, cards
-                    cajaBancos.put(widget.llaveCuenta, {..._cuenta, 'cards': tarjetasActualizadas}); // Renombrado de accountKey, _account, updatedCards
+                    final tarjetasActualizadas = [...tarjetas, tarjeta];
+                    _cuenta['cards'] = tarjetasActualizadas;
+                    cajaBancos.put(widget.llaveCuenta, _cuenta);
                   }
-                }),
-                if (tarjetas.isEmpty) // Renombrado de cards
-                  const Center(child: Padding(padding: EdgeInsets.all(16.0), child: Text('No hay tarjetas guardadas.')))
-                else
-                  ...tarjetas.asMap().entries.map((entrada) => _construirTileTarjeta(entrada.key, entrada.value)), // Renombrado de cards, _buildCardTile, entry
-                const SizedBox(height: 24),
-
-                // --- Sección de Cuentas Asociadas ---
-                _construirEncabezadoSeccionEditable('Cuentas Asociadas', Icons.people_outline, () async { // Renombrado de _buildSectionHeader
-                  final nuevaCuenta = await Navigator.push<Map<String, String>>( // Renombrado de newAccount
-                      context, MaterialPageRoute(builder: (_) => const PantallaAgregarCuentaVinculada())); // Renombrado de AddLinkedAccountScreen
+                },
+              ),
+              if (tarjetas.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text('No hay tarjetas guardadas.'),
+                  ),
+                )
+              else
+                ...tarjetas.asMap().entries.map(
+                  (e) => _buildCardTile(e.key, e.value),
+                ),
+              const SizedBox(height: 24),
+              _buildEditableSectionHeader(
+                'Cuentas Asociadas',
+                Icons.people_outline,
+                () async {
+                  final nuevaCuenta = await Navigator.push<Map<String, String>>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PantallaAgregarCuentaVinculada(),
+                    ),
+                  );
                   if (nuevaCuenta != null) {
-                    final cuentasActualizadas = [...cuentasVinculadas, nuevaCuenta]; // Renombrado de updatedAccounts, linkedAccounts, newAccount
-                    cajaBancos.put(widget.llaveCuenta, {..._cuenta, 'linkedAccounts': cuentasActualizadas}); // Renombrado de accountKey, _account, updatedAccounts
+                    final cuentasActualizadas = [
+                      ...cuentasVinculadas,
+                      nuevaCuenta,
+                    ];
+                    _cuenta['linkedAccounts'] = cuentasActualizadas;
+                    cajaBancos.put(widget.llaveCuenta, _cuenta);
                   }
-                }),
-                if (cuentasVinculadas.isEmpty) // Renombrado de linkedAccounts
-                  const Center(child: Padding(padding: EdgeInsets.all(16.0), child: Text('No hay cuentas asociadas.')))
-                else
-                  ...cuentasVinculadas.asMap().entries.map((entrada) => _construirTileCuentaVinculada(entrada.key, entrada.value)), // Renombrado de linkedAccounts, _buildLinkedAccountTile, entry
-              ],
-            );
-          }),
+                },
+              ),
+              if (cuentasVinculadas.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text('No hay cuentas asociadas.'),
+                  ),
+                )
+              else
+                ...cuentasVinculadas.asMap().entries.map(
+                  (e) => _buildLinkedAccountTile(e.key, e.value),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 
-  Widget _construirEncabezadoSeccionEditable(String titulo, IconData icono, VoidCallback alAgregar) { // Renombrado de _buildSectionHeader, onAdd
+  Widget _buildEditableSectionHeader(
+    String title,
+    IconData icon,
+    VoidCallback onAdd,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(titulo, style: Theme.of(context).textTheme.titleLarge),
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
         IconButton.filledTonal(
           icon: const Icon(Icons.add),
           tooltip: 'Agregar',
-          onPressed: alAgregar, // Renombrado de onAdd
-        )
+          onPressed: onAdd,
+        ),
       ],
     );
   }
 
-  Widget _construirTileTarjeta(int indice, Map tarjeta) { // Renombrado de _buildCardTile, index, card
+  // Widget para mostrar una tarjeta guardada, con lógica de ocultar/mostrar y copiar.
+  // Widget to display a saved card, with hide/show and copy logic.
+  Widget _buildCardTile(int index, Map card) {
+    _mostrarDatosTarjeta[index] ??= false;
+    final bool isVisible = _mostrarDatosTarjeta[index]!;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
-        title: Text(tarjeta['name'] ?? 'Tarjeta sin nombre', style: const TextStyle(fontWeight: FontWeight.bold)), // Renombrado de card
+        title: Text(
+          card['name'] ?? 'Tarjeta sin nombre',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _construirCampoCopiable('Número', tarjeta['number']), // Renombrado de _buildCopyableField, card
-            _construirCampoCopiable('Vence', tarjeta['expiry']), // Renombrado de _buildCopyableField, card
-            _construirCampoCopiable('CVV', tarjeta['cvv']), // Renombrado de _buildCopyableField, card
+            // --- INICIO: CAMBIOS APLICADOS (SECCIÓN 2) ---
+            _buildCopiableField(
+              'Número',
+              isVisible
+                  ? _formatCardNumberForDisplay(card['number'])
+                  : _formatHiddenText(card['number']),
+              card['number'] ?? '',
+            ),
+            _buildCopiableField(
+              'Vence',
+              isVisible
+                  ? (card['expiry'] ?? '')
+                  : _formatHiddenText(card['expiry']),
+              card['expiry'] ?? '',
+            ),
+            _buildCopiableField(
+              'CVV',
+              isVisible ? (card['cvv'] ?? '') : _formatHiddenCVV(card['cvv']),
+              card['cvv'] ?? '',
+            ),
+            // --- FIN: CAMBIOS APLICADOS (SECCIÓN 2) ---
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(
+                isVisible
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 20,
+              ),
+              onPressed: () => setState(
+                () =>
+                    _mostrarDatosTarjeta[index] = !_mostrarDatosTarjeta[index]!,
+              ),
+              tooltip: isVisible ? 'Ocultar datos' : 'Mostrar datos',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+            const SizedBox(width: 4),
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value == 'Editar') {
+                  final editedCard = await Navigator.push<Map<String, String>>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PantallaAgregarTarjeta(
+                        initialData: Map<String, String>.from(card),
+                      ),
+                    ),
+                  );
+                  if (editedCard != null) {
+                    final currentCards = List.from(_cuenta['cards']);
+                    currentCards[index] = editedCard;
+                    _cuenta['cards'] = currentCards;
+                    cajaBancos.put(widget.llaveCuenta, _cuenta);
+                  }
+                } else if (value == 'Eliminar') {
+                  final currentCards = List.from(_cuenta['cards']);
+                  currentCards.removeAt(index);
+                  _cuenta['cards'] = currentCards;
+                  cajaBancos.put(widget.llaveCuenta, _cuenta);
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'Editar', child: Text('Editar')),
+                const PopupMenuItem(value: 'Eliminar', child: Text('Eliminar')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLinkedAccountTile(int index, Map account) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ListTile(
+        title: Text(
+          account['nombre']?.isNotEmpty == true
+              ? account['nombre']
+              : 'Cuenta sin nombre',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tipo: ${account['tipo']}'),
+            // --- INICIO: CAMBIOS APLICADOS (SECCIÓN 2) ---
+            _buildCopiableField('Cuenta', account['numero'], account['numero']),
+            // --- FIN: CAMBIOS APLICADOS (SECCIÓN 2) ---
           ],
         ),
         trailing: PopupMenuButton<String>(
-          onSelected: (valor) async { // Renombrado de value
-            if (valor == 'Editar') {
-              final tarjetaActualizada = await Navigator.push<Map<String, String>>( // Renombrado de updatedCard
-                context,
-                MaterialPageRoute(builder: (_) => PantallaAgregarTarjeta(datosIniciales: Map<String, String>.from(tarjeta))), // Renombrado de AddCardScreen, initialData, card
+          onSelected: (value) async {
+            if (value == 'Editar') {
+              final updatedAccount = await _showEditLinkedAccountDialog(
+                account,
               );
-              if (tarjetaActualizada != null) {
-                final tarjetasActuales = List.from(_cuenta['cards']); // Renombrado de currentCards, _account
-                tarjetasActuales[indice] = tarjetaActualizada; // Renombrado de index, updatedCard
-                cajaBancos.put(widget.llaveCuenta, {..._cuenta, 'cards': tarjetasActuales}); // Renombrado de accountKey, _account, currentCards
+              if (updatedAccount != null) {
+                final currentAccounts = List.from(_cuenta['linkedAccounts']);
+                currentAccounts[index] = updatedAccount;
+                _cuenta['linkedAccounts'] = currentAccounts;
+                cajaBancos.put(widget.llaveCuenta, _cuenta);
               }
-            } else if (valor == 'Eliminar') {
-              final tarjetasActuales = List.from(_cuenta['cards']); // Renombrado de currentCards, _account
-              tarjetasActuales.removeAt(indice); // Renombrado de index
-              cajaBancos.put(widget.llaveCuenta, {..._cuenta, 'cards': tarjetasActuales}); // Renombrado de accountKey, _account, currentCards
+            } else if (value == 'Eliminar') {
+              final currentAccounts = List.from(_cuenta['linkedAccounts']);
+              currentAccounts.removeAt(index);
+              _cuenta['linkedAccounts'] = currentAccounts;
+              cajaBancos.put(widget.llaveCuenta, _cuenta);
             }
           },
           itemBuilder: (context) => [
@@ -989,79 +1365,59 @@ class EstadoPantallaEditarCuenta extends State<PantallaEditarCuenta> {
     );
   }
 
-  Widget _construirTileCuentaVinculada(int indice, Map cuenta) { // Renombrado de _buildLinkedAccountTile, index
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        title: Text(cuenta['nombre']?.isNotEmpty == true ? cuenta['nombre'] : 'Cuenta sin nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Tipo: ${cuenta['tipo']}'),
-            _construirCampoCopiable('Número', cuenta['numero']), // Renombrado de _buildCopyableField
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (valor) async { // Renombrado de value
-            if (valor == 'Editar') {
-              final cuentaActualizada = await _mostrarDialogoEditarCuentaVinculada(cuenta); // Renombrado de updatedAccount, _showEditLinkedAccountDialog
-              if (cuentaActualizada != null) {
-                final cuentasActuales = List.from(_cuenta['linkedAccounts']); // Renombrado de currentAccounts, _account
-                cuentasActuales[indice] = cuentaActualizada; // Renombrado de index, updatedAccount
-                cajaBancos.put(widget.llaveCuenta, {..._cuenta, 'linkedAccounts': cuentasActuales}); // Renombrado de accountKey, _account, currentAccounts
-              }
-            } else if (valor == 'Eliminar') {
-              final cuentasActuales = List.from(_cuenta['linkedAccounts']); // Renombrado de currentAccounts, _account
-              cuentasActuales.removeAt(indice); // Renombrado de index
-              cajaBancos.put(widget.llaveCuenta, {..._cuenta, 'linkedAccounts': cuentasActuales}); // Renombrado de accountKey, _account, currentCards
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'Editar', child: Text('Editar')),
-            const PopupMenuItem(value: 'Eliminar', child: Text('Eliminar')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<Map<String, String>?> _mostrarDialogoEditarCuentaVinculada(Map cuenta) async { // Renombrado de _showEditLinkedAccountDialog
-    final controladorNombre = TextEditingController(text: cuenta['nombre']); // Renombrado de nombreCtrl
-    final controladorNumero = TextEditingController(text: cuenta['numero']); // Renombrado de numeroCtrl
-    String tipo = cuenta['tipo'];
+  Future<Map<String, String>?> _showEditLinkedAccountDialog(Map account) async {
+    final nameController = TextEditingController(text: account['nombre']);
+    final numberController = TextEditingController(text: account['numero']);
+    String type = account['tipo'];
 
     return showDialog<Map<String, String>>(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (context, establecerEstadoDialogo) { // Renombrado de setDialogState
+        builder: (context, setDialogState) {
           return AlertDialog(
             title: const Text('Editar Cuenta Asociada'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(controller: controladorNombre, decoration: const InputDecoration(labelText: 'Nombre')), // Renombrado de nombreCtrl
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: tipo,
-                    decoration: const InputDecoration(labelText: 'Tipo de Cuenta'),
-                    items: ['Ahorro', 'Corriente', 'Llave'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                    onChanged: (val) => establecerEstadoDialogo(() => tipo = val!), // Renombrado de setDialogState
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Nombre'),
                   ),
                   const SizedBox(height: 16),
-                  TextField(controller: controladorNumero, decoration: const InputDecoration(labelText: 'Número')), // Renombrado de numeroCtrl
+                  DropdownButtonFormField<String>(
+                    value: type,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de Cuenta',
+                    ),
+                    items: ['Ahorro', 'Corriente', 'Llave']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (val) => setDialogState(() => type = val!),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: numberController,
+                    // --- INICIO: CAMBIO APLICADO (SECCIÓN 2) ---
+                    keyboardType: TextInputType.text, // Teclado alfanumérico
+                    // --- FIN: CAMBIO APLICADO (SECCIÓN 2) ---
+                    decoration: const InputDecoration(labelText: 'Cuenta'),
+                  ),
                 ],
               ),
             ),
             actions: [
-              TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(context)),
+              TextButton(
+                child: const Text('Cancelar'),
+                onPressed: () => Navigator.pop(context),
+              ),
               ElevatedButton(
                 child: const Text('Guardar'),
                 onPressed: () {
                   Navigator.pop(context, {
-                    'nombre': controladorNombre.text.trim(), // Renombrado de nombreCtrl
-                    'tipo': tipo,
-                    'numero': controladorNumero.text.trim(), // Renombrado de numeroCtrl
+                    'nombre': nameController.text.trim(),
+                    'tipo': type,
+                    'numero': numberController.text.trim(),
                   });
                 },
               ),
@@ -1072,24 +1428,41 @@ class EstadoPantallaEditarCuenta extends State<PantallaEditarCuenta> {
     );
   }
 
-  Widget _construirCampoCopiable(String etiqueta, String? valor) { // Renombrado de _buildCopyableField, label, value
-    if (valor == null || valor.isEmpty) return const SizedBox.shrink();
+  // Widget reutilizable para mostrar un campo con un botón de copiar.
+  // Reusable widget to display a field with a copy button.
+  Widget _buildCopiableField(
+    String label,
+    String? displayValue,
+    String originalValue,
+  ) {
+    if (displayValue == null || displayValue.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return GestureDetector(
       onTap: () {
-        Clipboard.setData(ClipboardData(text: valor)); // Renombrado de value
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$etiqueta copiado al portapapeles.'), // Renombrado de label
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
+        Clipboard.setData(ClipboardData(text: originalValue));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$label copiado al portapapeles.'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 2.0),
         child: Row(
           children: [
-            Text('$etiqueta: ', style: const TextStyle(fontWeight: FontWeight.w500)), // Renombrado de label
-            Expanded(child: Text(valor, overflow: TextOverflow.ellipsis)), // Renombrado de value
-            const Icon(Icons.copy_all_outlined, size: 14, color: Colors.grey)
+            Text(
+              '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            Expanded(
+              child: Text(displayValue, overflow: TextOverflow.ellipsis),
+            ),
+            const Icon(Icons.copy_all_outlined, size: 14, color: Colors.grey),
           ],
         ),
       ),
@@ -1098,52 +1471,72 @@ class EstadoPantallaEditarCuenta extends State<PantallaEditarCuenta> {
 }
 
 //==============================================================================
-// 💳 PANTALLAS DE AGREGAR TARJETA Y CUENTA ASOCIADA
+// 💳 ADD CARD AND LINKED ACCOUNT SCREENS
 //==============================================================================
-class PantallaAgregarTarjeta extends StatelessWidget { // Renombrado de AddCardScreen
-  final Map<String, String>? datosIniciales; // Renombrado de initialData
-  PantallaAgregarTarjeta({super.key, this.datosIniciales}); // Renombrado de initialData
+class PantallaAgregarTarjeta extends StatelessWidget {
+  final Map<String, String>? initialData;
+  PantallaAgregarTarjeta({super.key, this.initialData});
 
-  final controladorNombreTarjeta = TextEditingController(); // Renombrado de cardNameController
-  final controladorNumero = TextEditingController(); // Renombrado de numberController
-  final controladorVencimiento = TextEditingController(); // Renombrado de expiryController
-  final controladorCvv = TextEditingController(); // Renombrado de cvvController
+  final nameController = TextEditingController();
+  final numberController = TextEditingController();
+  final expiryController = TextEditingController();
+  final cvvController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    if (datosIniciales != null) { // Renombrado de initialData
-      controladorNombreTarjeta.text = datosIniciales!['name'] ?? ''; // Renombrado de cardNameController, initialData
-      controladorNumero.text = datosIniciales!['number'] ?? ''; // Renombrado de numberController, initialData
-      controladorVencimiento.text = datosIniciales!['expiry'] ?? ''; // Renombrado de expiryController, initialData
-      controladorCvv.text = datosIniciales!['cvv'] ?? ''; // Renombrado de cvvController, initialData
+    if (initialData != null) {
+      nameController.text = initialData!['name'] ?? '';
+      numberController.text = initialData!['number'] ?? '';
+      expiryController.text = initialData!['expiry'] ?? '';
+      cvvController.text = initialData!['cvv'] ?? '';
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(datosIniciales == null ? 'Nueva Tarjeta' : 'Editar Tarjeta')), // Renombrado de initialData
+      appBar: AppBar(
+        title: Text(initialData == null ? 'Nueva Tarjeta' : 'Editar Tarjeta'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(controller: controladorNombreTarjeta, decoration: const InputDecoration(labelText: 'Nombre de la tarjeta (Ej: "Visa Gold")')), // Renombrado de cardNameController
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre de la tarjeta (Ej: "Visa Gold")',
+              ),
+            ),
             const SizedBox(height: 16),
-            TextField(controller: controladorNumero, decoration: const InputDecoration(labelText: 'Número de tarjeta'), keyboardType: TextInputType.number), // Renombrado de numberController
+            TextField(
+              controller: numberController,
+              decoration: const InputDecoration(labelText: 'Número de tarjeta'),
+              keyboardType: TextInputType.number,
+            ),
             const SizedBox(height: 16),
-            TextField(controller: controladorVencimiento, decoration: const InputDecoration(labelText: 'Fecha de vencimiento (MM/AA)')), // Renombrado de expiryController
+            TextField(
+              controller: expiryController,
+              decoration: const InputDecoration(
+                labelText: 'Fecha de vencimiento (MM/AA)',
+              ),
+            ),
             const SizedBox(height: 16),
-            TextField(controller: controladorCvv, decoration: const InputDecoration(labelText: 'CVV'), keyboardType: TextInputType.number), // Renombrado de cvvController
+            TextField(
+              controller: cvvController,
+              decoration: const InputDecoration(labelText: 'CVV'),
+              keyboardType: TextInputType.number,
+            ),
             const SizedBox(height: 32),
             ElevatedButton(
               child: const Text('Guardar Tarjeta'),
               onPressed: () {
                 Navigator.pop(context, {
-                  'name': controladorNombreTarjeta.text.trim(), // Renombrado de cardNameController
-                  'number': controladorNumero.text.trim(), // Renombrado de numberController
-                  'expiry': controladorVencimiento.text.trim(), // Renombrado de expiryController
-                  'cvv': controladorCvv.text.trim(), // Renombrado de cvvController
+                  'name': nameController.text.trim(),
+                  'number': numberController.text.trim(),
+                  'expiry': expiryController.text.trim(),
+                  'cvv': cvvController.text.trim(),
                 });
               },
-            )
+            ),
           ],
         ),
       ),
@@ -1151,17 +1544,19 @@ class PantallaAgregarTarjeta extends StatelessWidget { // Renombrado de AddCardS
   }
 }
 
-class PantallaAgregarCuentaVinculada extends StatefulWidget { // Renombrado de AddLinkedAccountScreen
+class PantallaAgregarCuentaVinculada extends StatefulWidget {
   const PantallaAgregarCuentaVinculada({super.key});
 
   @override
-  EstadoPantallaAgregarCuentaVinculada createState() => EstadoPantallaAgregarCuentaVinculada(); // Renombrado de AddLinkedAccountScreenState
+  EstadoPantallaAgregarCuentaVinculada createState() =>
+      EstadoPantallaAgregarCuentaVinculada();
 }
 
-class EstadoPantallaAgregarCuentaVinculada extends State<PantallaAgregarCuentaVinculada> { // Renombrado de AddLinkedAccountScreenState
-  final controladorNombre = TextEditingController(); // Renombrado de nombreController
-  final controladorNumero = TextEditingController(); // Renombrado de numeroController
-  String tipoCuenta = 'Ahorro';
+class EstadoPantallaAgregarCuentaVinculada
+    extends State<PantallaAgregarCuentaVinculada> {
+  final nameController = TextEditingController();
+  final numberController = TextEditingController();
+  String accountType = 'Ahorro';
 
   @override
   Widget build(BuildContext context) {
@@ -1172,24 +1567,41 @@ class EstadoPantallaAgregarCuentaVinculada extends State<PantallaAgregarCuentaVi
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(controller: controladorNombre, decoration: const InputDecoration(labelText: 'Nombre (ej: "Juan Pérez")')), // Renombrado de nombreController
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: tipoCuenta,
-              decoration: const InputDecoration(labelText: 'Tipo de Cuenta'),
-              items: ['Ahorro', 'Corriente', 'Llave'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: (val) => setState(() => tipoCuenta = val!),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre (ej: "Juan Pérez")',
+              ),
             ),
             const SizedBox(height: 16),
-            TextField(controller: controladorNumero, decoration: const InputDecoration(labelText: 'Número de cuenta'), keyboardType: TextInputType.number), // Renombrado de numeroController
+            DropdownButtonFormField<String>(
+              value: accountType,
+              decoration: const InputDecoration(labelText: 'Tipo de Cuenta'),
+              items: [
+                'Ahorro',
+                'Corriente',
+                'Llave',
+              ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              onChanged: (val) => setState(() => accountType = val!),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: numberController,
+              decoration: const InputDecoration(
+                labelText: 'Número de cuenta o llave',
+              ),
+              // --- INICIO: CAMBIO APLICADO (SECCIÓN 2) ---
+              keyboardType: TextInputType.text, // Permite letras y números.
+              // --- FIN: CAMBIO APLICADO (SECCIÓN 2) ---
+            ),
             const SizedBox(height: 32),
             ElevatedButton(
               child: const Text('Guardar Cuenta'),
               onPressed: () {
                 Navigator.pop(context, {
-                  'nombre': controladorNombre.text.trim(), // Renombrado de nombreController
-                  'tipo': tipoCuenta,
-                  'numero': controladorNumero.text.trim(), // Renombrado de numeroController
+                  'nombre': nameController.text.trim(),
+                  'tipo': accountType,
+                  'numero': numberController.text.trim(),
                 });
               },
             ),
@@ -1200,158 +1612,241 @@ class EstadoPantallaAgregarCuentaVinculada extends State<PantallaAgregarCuentaVi
   }
 }
 
-
 //==============================================================================
-// 💸 PANTALLAS DE GESTIÓN DE TRANSACCIONES (Agregar, Editar, Historial)
+// 💸 TRANSACTION MANAGEMENT SCREENS (Add, Edit, History)
 //==============================================================================
-class PantallaAgregarMovimiento extends StatefulWidget { // Renombrado de AddTransactionScreen
+class PantallaAgregarMovimiento extends StatefulWidget {
   const PantallaAgregarMovimiento({super.key});
   @override
-  EstadoPantallaAgregarMovimiento createState() => EstadoPantallaAgregarMovimiento(); // Renombrado de AddTransactionScreenState
+  EstadoPantallaAgregarMovimiento createState() =>
+      EstadoPantallaAgregarMovimiento();
 }
 
-class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> { // Renombrado de AddTransactionScreenState
-  final _claveFormulario = GlobalKey<FormState>(); // Renombrado de _formKey
-  String tipo = 'Gasto'; // Renombrado de type
-  double monto = 0; // Renombrado de amount
-  int? cuentaSeleccionada; // Renombrado de selectedAccount
-  int? cuentaDestino; // Renombrado de destinationAccount
-  String descripcion = ''; // Renombrado de description
+class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
+  final _claveFormulario = GlobalKey<FormState>();
+  String tipo = 'Gasto';
+  double monto = 0;
+  String tipoGasto = 'Personal';
+  int? cuentaSeleccionada;
+  int? cuentaDestino;
+  String descripcion = '';
   DateTime fechaSeleccionada = DateTime.now();
   bool yaReflejado = false;
-  final controladorMonto = TextEditingController(); // Renombrado de amountController
-  final controladorDescripcion = TextEditingController(); // Renombrado de descController
+  final controladorMonto = TextEditingController();
+  final controladorDescripcion = TextEditingController();
 
-  void _guardarMovimiento() { // Renombrado de _saveTransaction
-    if (!_claveFormulario.currentState!.validate()) return; // Renombrado de _formKey
-    _claveFormulario.currentState!.save(); // Renombrado de _formKey
-    if (monto <= 0) return;
+  void _guardarMovimiento() {
+    if (!_claveFormulario.currentState!.validate()) return;
+    _claveFormulario.currentState!.save();
 
-    final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
+    final cajaMovimientos = Hive.box('movimientos');
+    final cajaBancos = Hive.box('bancos');
+
+    final datosMovimiento = {
+      'type': tipo,
+      'amount': monto,
+      'description': descripcion,
+      'date': fechaSeleccionada.toIso8601String(),
+      'reflejado': yaReflejado,
+      'tipoGasto': tipo == 'Gasto' ? tipoGasto : null,
+    };
+
     if (tipo == 'Ingreso' || tipo == 'Gasto') {
-      if (cuentaSeleccionada == null) return; // Renombrado de selectedAccount
-      final cuenta = cajaBancos.get(cuentaSeleccionada!); // Renombrado de acc, selectedAccount
+      final cuenta = cajaBancos.get(cuentaSeleccionada);
+      datosMovimiento['account'] = cuenta['name'];
       if (!yaReflejado) {
-        final nuevoSaldo = tipo == 'Ingreso' ? cuenta['balance'] + monto : cuenta['balance'] - monto;
-        cajaBancos.put(cuentaSeleccionada!, {...cuenta, 'balance': nuevoSaldo}); // Renombrado de selectedAccount, acc
+        final nuevoBalance =
+            cuenta['balance'] + (tipo == 'Ingreso' ? monto : -monto);
+        cajaBancos.put(cuentaSeleccionada, {
+          ...cuenta,
+          'balance': nuevoBalance,
+        });
       }
-      Hive.box('movimientos').add({ // Renombrado de transactions
-        'type': tipo, 'amount': monto, 'account': cuenta['name'], 'description': descripcion,
-        'date': fechaSeleccionada.toIso8601String(), 'reflejado': yaReflejado,
-      });
     } else if (tipo == 'Transferencia') {
-      if (cuentaSeleccionada == null || cuentaDestino == null) return; // Renombrado de selectedAccount, destinationAccount
-      final cuentaOrigen = cajaBancos.get(cuentaSeleccionada!); // Renombrado de fromAcc, selectedAccount
-      final cuentaDestinoObj = cajaBancos.get(cuentaDestino!); // Renombrado de toAcc, destinationAccount
+      final cuentaOrigen = cajaBancos.get(cuentaSeleccionada);
+      final cuentaDest = cajaBancos.get(cuentaDestino);
+      datosMovimiento['from'] = cuentaOrigen['name'];
+      datosMovimiento['to'] = cuentaDest['name'];
       if (!yaReflejado) {
-        cajaBancos.put(cuentaSeleccionada!, {...cuentaOrigen, 'balance': cuentaOrigen['balance'] - monto}); // Renombrado de selectedAccount, fromAcc
-        cajaBancos.put(cuentaDestino!, {...cuentaDestinoObj, 'balance': cuentaDestinoObj['balance'] + monto}); // Renombrado de destinationAccount, toAcc
+        cajaBancos.put(cuentaSeleccionada, {
+          ...cuentaOrigen,
+          'balance': cuentaOrigen['balance'] - monto,
+        });
+        cajaBancos.put(cuentaDestino, {
+          ...cuentaDest,
+          'balance': cuentaDest['balance'] + monto,
+        });
       }
-      Hive.box('movimientos').add({ // Renombrado de transactions
-        'type': 'Transferencia', 'amount': monto, 'from': cuentaOrigen['name'], 'to': cuentaDestinoObj['name'],
-        'description': descripcion, 'date': fechaSeleccionada.toIso8601String(), 'reflejado': yaReflejado,
-      });
     }
-    Navigator.pop(context);
+    cajaMovimientos.add(datosMovimiento);
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    final bancos = Hive.box('bancos'); // Renombrado de accounts
+    // --- INICIO: CAMBIO APLICADO (SECCIÓN 3) ---
+    // Se obtienen las cuentas en el orden definido por el usuario.
+    // Accounts are fetched in the user-defined order.
+    final orderedAccounts = getOrderedAccounts();
+    // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
+
     return Scaffold(
       appBar: AppBar(title: const Text('Nuevo Movimiento')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
-          key: _claveFormulario, // Renombrado de _formKey
+          key: _claveFormulario,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DropdownButtonFormField<String>(
-                value: tipo, // Renombrado de type
-                decoration: const InputDecoration(labelText: 'Tipo de Movimiento'),
-                items: ['Gasto', 'Ingreso', 'Transferencia'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                value: tipo,
+                decoration: const InputDecoration(
+                  labelText: 'Tipo de Movimiento',
+                ),
+                items: ['Gasto', 'Ingreso', 'Transferencia']
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
                 onChanged: (val) => setState(() {
-                  tipo = val!; cuentaSeleccionada = null; cuentaDestino = null; // Renombrado de type, selectedAccount, destinationAccount
+                  tipo = val!;
+                  cuentaSeleccionada = null;
+                  cuentaDestino = null;
                 }),
               ),
               const SizedBox(height: 16),
+              if (tipo == 'Gasto') ...[
+                DropdownButtonFormField<String>(
+                  value: tipoGasto,
+                  decoration: const InputDecoration(labelText: 'Tipo de Gasto'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Personal',
+                      child: Text('Personal'),
+                    ),
+                    DropdownMenuItem(value: 'Hogar', child: Text('Hogar')),
+                  ],
+                  onChanged: (String? value) {
+                    setState(() => tipoGasto = value ?? 'Personal');
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
               TextFormField(
-                controller: controladorMonto, // Renombrado de amountController
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Monto', prefixText: '\$ '),
-                onSaved: (val) => monto = double.tryParse(val ?? '0') ?? 0, // Renombrado de amount
+                controller: controladorMonto,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Monto',
+                  prefixText: '\$ ',
+                ),
+                onSaved: (val) => monto = double.tryParse(val ?? '0') ?? 0,
                 validator: (val) {
-                  if (val == null || val.isEmpty || (double.tryParse(val) ?? 0) <= 0) {
+                  if (val == null ||
+                      val.isEmpty ||
+                      (double.tryParse(val) ?? 0) <= 0) {
                     return 'Ingresa un monto válido';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
-              if (tipo != 'Transferencia') // Renombrado de type
+              if (tipo != 'Transferencia')
                 DropdownButtonFormField<int>(
-                  value: cuentaSeleccionada, // Renombrado de selectedAccount
+                  value: cuentaSeleccionada,
                   hint: const Text('Seleccionar cuenta'),
                   decoration: const InputDecoration(labelText: 'Cuenta'),
                   isExpanded: true,
-                  items: bancos.keys.map<DropdownMenuItem<int>>((key) => DropdownMenuItem<int>(
-                      value: key, child: Text(bancos.get(key)['name']))
-                  ).toList(),
-                  onChanged: (val) => setState(() => cuentaSeleccionada = val), // Renombrado de selectedAccount
-                  validator: (val) => val == null ? 'Selecciona una cuenta' : null,
+                  // --- INICIO: CAMBIO APLICADO (SECCIÓN 3) ---
+                  items: orderedAccounts
+                      .map<DropdownMenuItem<int>>(
+                        (entry) => DropdownMenuItem<int>(
+                          value: entry.key,
+                          child: Text(entry.value['name']),
+                        ),
+                      )
+                      .toList(),
+                  // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
+                  onChanged: (val) => setState(() => cuentaSeleccionada = val),
+                  validator: (val) =>
+                      val == null ? 'Selecciona una cuenta' : null,
                 ),
-              if (tipo == 'Transferencia') ...[ // Renombrado de type
+              if (tipo == 'Transferencia') ...[
                 DropdownButtonFormField<int>(
-                  value: cuentaSeleccionada, // Renombrado de selectedAccount
+                  value: cuentaSeleccionada,
                   hint: const Text('Cuenta Origen'),
                   decoration: const InputDecoration(labelText: 'Desde'),
                   isExpanded: true,
-                  items: bancos.keys.map<DropdownMenuItem<int>>((key) => DropdownMenuItem<int>(
-                      value: key, child: Text('Desde: ${bancos.get(key)['name']}'))
-                  ).toList(),
-                  onChanged: (val) => setState(() => cuentaSeleccionada = val), // Renombrado de selectedAccount
+                  // --- INICIO: CAMBIO APLICADO (SECCIÓN 3) ---
+                  items: orderedAccounts
+                      .map<DropdownMenuItem<int>>(
+                        (entry) => DropdownMenuItem<int>(
+                          value: entry.key,
+                          child: Text('Desde: ${entry.value['name']}'),
+                        ),
+                      )
+                      .toList(),
+                  // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
+                  onChanged: (val) => setState(() => cuentaSeleccionada = val),
                   validator: (val) => val == null ? 'Selecciona origen' : null,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int>(
-                  value: cuentaDestino, // Renombrado de destinationAccount
+                  value: cuentaDestino,
                   hint: const Text('Cuenta Destino'),
                   decoration: const InputDecoration(labelText: 'Hacia'),
                   isExpanded: true,
-                  items: bancos.keys.where((key) => key != cuentaSeleccionada).map<DropdownMenuItem<int>>((key) => DropdownMenuItem<int>( // Renombrado de selectedAccount
-                      value: key, child: Text('Hacia: ${bancos.get(key)['name']}'))
-                  ).toList(),
-                  onChanged: (val) => setState(() => cuentaDestino = val), // Renombrado de destinationAccount
+                  // --- INICIO: CAMBIO APLICADO (SECCIÓN 3) ---
+                  items: orderedAccounts
+                      .where((entry) => entry.key != cuentaSeleccionada)
+                      .map<DropdownMenuItem<int>>(
+                        (entry) => DropdownMenuItem<int>(
+                          value: entry.key,
+                          child: Text('Hacia: ${entry.value['name']}'),
+                        ),
+                      )
+                      .toList(),
+                  // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
+                  onChanged: (val) => setState(() => cuentaDestino = val),
                   validator: (val) => val == null ? 'Selecciona destino' : null,
                 ),
               ],
               const SizedBox(height: 16),
               TextFormField(
-                controller: controladorDescripcion, // Renombrado de descController
-                decoration: const InputDecoration(labelText: 'Descripción (opcional)'),
-                onSaved: (val) => descripcion = val?.trim() ?? '', // Renombrado de description
+                controller: controladorDescripcion,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción (opcional)',
+                ),
+                onSaved: (val) => descripcion = val?.trim() ?? '',
               ),
               const SizedBox(height: 16),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Fecha del movimiento'),
-                subtitle: Text(DateFormat('EEEE, d MMM y', 'es').format(fechaSeleccionada)),
+                subtitle: Text(
+                  DateFormat('EEEE, d MMM y', 'es').format(fechaSeleccionada),
+                ),
                 trailing: const Icon(Icons.calendar_today_outlined),
                 onTap: () async {
-                  final seleccionada = await showDatePicker( // Renombrado de picked
-                    context: context, initialDate: fechaSeleccionada,
-                    firstDate: DateTime(DateTime.now().year - 5), lastDate: DateTime.now(),
+                  final seleccionada = await showDatePicker(
+                    context: context,
+                    initialDate: fechaSeleccionada,
+                    firstDate: DateTime(DateTime.now().year - 5),
+                    lastDate: DateTime.now(),
                     locale: const Locale('es'),
                   );
-                  if (seleccionada != null) setState(() => fechaSeleccionada = seleccionada); // Renombrado de picked
+                  if (seleccionada != null) {
+                    setState(() => fechaSeleccionada = seleccionada);
+                  }
                 },
               ),
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('No afectar saldo'),
-                subtitle: const Text('Marcar si el movimiento ya se reflejó en el banco.'),
+                subtitle: const Text(
+                  'Marcar si el movimiento ya se reflejó en el banco.',
+                ),
                 value: yaReflejado,
                 onChanged: (val) => setState(() => yaReflejado = val),
               ),
@@ -1359,7 +1854,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
               ElevatedButton.icon(
                 icon: const Icon(Icons.save_alt_outlined),
                 label: const Text('Guardar Movimiento'),
-                onPressed: _guardarMovimiento, // Renombrado de _saveTransaction
+                onPressed: _guardarMovimiento,
               ),
             ],
           ),
@@ -1369,95 +1864,137 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
   }
 }
 
-class PantallaEditarMovimiento extends StatefulWidget { // Renombrado de EditTransactionScreen
-  final dynamic llaveMovimiento; // Renombrado de txKey
-  final Map datosMovimiento; // Renombrado de txData
-  const PantallaEditarMovimiento({super.key, required this.llaveMovimiento, required this.datosMovimiento}); // Renombrado de txKey, txData
+class PantallaEditarMovimiento extends StatefulWidget {
+  const PantallaEditarMovimiento({
+    super.key,
+    required this.llaveMovimiento,
+    required this.datosMovimiento,
+  });
+
+  final dynamic llaveMovimiento;
+  final Map datosMovimiento;
+
   @override
-  @override
-  EstadoPantallaEditarMovimiento createState() => EstadoPantallaEditarMovimiento(); // Renombrado de EditTransactionScreenState
+  EstadoPantallaEditarMovimiento createState() =>
+      EstadoPantallaEditarMovimiento();
 }
 
-class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> { // Renombrado de EditTransactionScreenState
-  late String tipo; // Renombrado de type
-  late double monto; // Renombrado de amount
-  late String descripcion; // Renombrado de description
+class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
+  late String tipo;
+  late double monto;
+  late String descripcion;
   late DateTime fechaSeleccionada;
   late bool yaReflejado;
-  late double montoOriginal; // Renombrado de originalAmount
-  late bool reflejadoOriginal; // Renombrado de originalReflejado
-  final _controladorMonto = TextEditingController(); // Renombrado de _amountController
-  final _controladorDescripcion = TextEditingController(); // Renombrado de _descController
+  late double montoOriginal;
+  late bool reflejadoOriginal;
+  late String tipoGasto;
+  final _controladorMonto = TextEditingController();
+  final _controladorDescripcion = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    tipo = widget.datosMovimiento['type']; // Renombrado de txData
-    monto = widget.datosMovimiento['amount']; // Renombrado de txData
-    descripcion = widget.datosMovimiento['description'] ?? ''; // Renombrado de txData
-    fechaSeleccionada = DateTime.parse(widget.datosMovimiento['date']); // Renombrado de txData
-    yaReflejado = widget.datosMovimiento['reflejado'] == true; // Renombrado de txData
-    montoOriginal = monto; // Renombrado de originalAmount
-    reflejadoOriginal = yaReflejado; // Renombrado de originalReflejado
-    _controladorMonto.text = monto.toStringAsFixed(0); // Renombrado de _amountController
-    _controladorDescripcion.text = descripcion; // Renombrado de _descController
+    tipo = widget.datosMovimiento['type'];
+    monto = widget.datosMovimiento['amount'];
+    descripcion = widget.datosMovimiento['description'] ?? '';
+    fechaSeleccionada = DateTime.parse(widget.datosMovimiento['date']);
+    yaReflejado = widget.datosMovimiento['reflejado'] == true;
+    montoOriginal = monto;
+    reflejadoOriginal = yaReflejado;
+    tipoGasto = widget.datosMovimiento['tipoGasto'] ?? 'Personal';
+
+    _controladorMonto.text = monto.toStringAsFixed(0);
+    _controladorDescripcion.text = descripcion;
   }
 
-  void _revertirMovimientoOriginal() { // Renombrado de _revertOriginalTransaction
-    if (reflejadoOriginal) return; // Renombrado de originalReflejado
-    final cajaCuentas = Hive.box('bancos'); // Renombrado de accBox, accounts
+  void _revertirMovimientoOriginal() {
+    if (reflejadoOriginal) return;
+    final cajaCuentas = Hive.box('bancos');
     if (tipo == 'Ingreso' || tipo == 'Gasto') {
-      final llaveCuenta = _encontrarLlaveCuentaPorNombre(widget.datosMovimiento['account']); // Renombrado de accKey, txData, _findAccountKeyByName
+      final llaveCuenta = _encontrarLlaveCuentaPorNombre(
+        widget.datosMovimiento['account'],
+      );
       if (llaveCuenta == null) return;
-      final cuenta = cajaCuentas.get(llaveCuenta); // Renombrado de acc
-      final balanceOriginal = cuenta['balance'] + (tipo == 'Ingreso' ? -montoOriginal : montoOriginal); // Renombrado de originalAmount
-      cajaCuentas.put(llaveCuenta, {...cuenta, 'balance': balanceOriginal}); // Renombrado de acc
+      final cuenta = cajaCuentas.get(llaveCuenta);
+      final balanceOriginal =
+          cuenta['balance'] +
+          (tipo == 'Ingreso' ? -montoOriginal : montoOriginal);
+      cajaCuentas.put(llaveCuenta, {...cuenta, 'balance': balanceOriginal});
     } else if (tipo == 'Transferencia') {
-      final llaveOrigen = _encontrarLlaveCuentaPorNombre(widget.datosMovimiento['from']); // Renombrado de fromKey, txData, _findAccountKeyByName
-      final llaveDestino = _encontrarLlaveCuentaPorNombre(widget.datosMovimiento['to']); // Renombrado de toKey, txData, _findAccountKeyByName
+      final llaveOrigen = _encontrarLlaveCuentaPorNombre(
+        widget.datosMovimiento['from'],
+      );
+      final llaveDestino = _encontrarLlaveCuentaPorNombre(
+        widget.datosMovimiento['to'],
+      );
       if (llaveOrigen == null || llaveDestino == null) return;
-      final cuentaOrigen = cajaCuentas.get(llaveOrigen); // Renombrado de fromAcc
-      final cuentaDestino = cajaCuentas.get(llaveDestino); // Renombrado de toAcc
-      cajaCuentas.put(llaveOrigen, {...cuentaOrigen, 'balance': cuentaOrigen['balance'] + montoOriginal}); // Renombrado de fromAcc, originalAmount
-      cajaCuentas.put(llaveDestino, {...cuentaDestino, 'balance': cuentaDestino['balance'] - montoOriginal}); // Renombrado de toAcc, originalAmount
+      final cuentaOrigen = cajaCuentas.get(llaveOrigen);
+      final cuentaDestino = cajaCuentas.get(llaveDestino);
+      cajaCuentas.put(llaveOrigen, {
+        ...cuentaOrigen,
+        'balance': cuentaOrigen['balance'] + montoOriginal,
+      });
+      cajaCuentas.put(llaveDestino, {
+        ...cuentaDestino,
+        'balance': cuentaDestino['balance'] - montoOriginal,
+      });
     }
   }
 
-  void _aplicarNuevoMovimiento() { // Renombrado de _applyNewTransaction
+  void _aplicarNuevoMovimiento() {
     if (yaReflejado) return;
-    final cajaCuentas = Hive.box('bancos'); // Renombrado de accBox, accounts
+    final cajaCuentas = Hive.box('bancos');
     if (tipo == 'Ingreso' || tipo == 'Gasto') {
-      final llaveCuenta = _encontrarLlaveCuentaPorNombre(widget.datosMovimiento['account']); // Renombrado de accKey, txData, _findAccountKeyByName
+      final llaveCuenta = _encontrarLlaveCuentaPorNombre(
+        widget.datosMovimiento['account'],
+      );
       if (llaveCuenta == null) return;
-      final cuenta = cajaCuentas.get(llaveCuenta); // Renombrado de acc
-      final nuevoBalance = cuenta['balance'] + (tipo == 'Ingreso' ? monto : -monto);
-      cajaCuentas.put(llaveCuenta, {...cuenta, 'balance': nuevoBalance}); // Renombrado de acc
+      final cuenta = cajaCuentas.get(llaveCuenta);
+      final nuevoBalance =
+          cuenta['balance'] + (tipo == 'Ingreso' ? monto : -monto);
+      cajaCuentas.put(llaveCuenta, {...cuenta, 'balance': nuevoBalance});
     } else if (tipo == 'Transferencia') {
-      final llaveOrigen = _encontrarLlaveCuentaPorNombre(widget.datosMovimiento['from']); // Renombrado de fromKey, txData, _findAccountKeyByName
-      final llaveDestino = _encontrarLlaveCuentaPorNombre(widget.datosMovimiento['to']); // Renombrado de toKey, txData, _findAccountKeyByName
+      final llaveOrigen = _encontrarLlaveCuentaPorNombre(
+        widget.datosMovimiento['from'],
+      );
+      final llaveDestino = _encontrarLlaveCuentaPorNombre(
+        widget.datosMovimiento['to'],
+      );
       if (llaveOrigen == null || llaveDestino == null) return;
-      final cuentaOrigen = cajaCuentas.get(llaveOrigen); // Renombrado de fromAcc
-      final cuentaDestino = cajaCuentas.get(llaveDestino); // Renombrado de toAcc
-      cajaCuentas.put(llaveOrigen, {...cuentaOrigen, 'balance': cuentaOrigen['balance'] - monto}); // Renombrado de fromAcc
-      cajaCuentas.put(llaveDestino, {...cuentaDestino, 'balance': cuentaDestino['balance'] + monto}); // Renombrado de toAcc
+      final cuentaOrigen = cajaCuentas.get(llaveOrigen);
+      final cuentaDestino = cajaCuentas.get(llaveDestino);
+      cajaCuentas.put(llaveOrigen, {
+        ...cuentaOrigen,
+        'balance': cuentaOrigen['balance'] - monto,
+      });
+      cajaCuentas.put(llaveDestino, {
+        ...cuentaDestino,
+        'balance': cuentaDestino['balance'] + monto,
+      });
     }
   }
 
-  void _actualizarMovimiento() { // Renombrado de _updateTransaction
+  void _actualizarMovimiento() {
     if (monto <= 0) return;
-    _revertirMovimientoOriginal(); // Renombrado de _revertOriginalTransaction
-    _aplicarNuevoMovimiento(); // Renombrado de _applyNewTransaction
-    Hive.box('movimientos').put(widget.llaveMovimiento, { // Renombrado de transactions, txKey
-      ...widget.datosMovimiento, 'amount': monto, 'description': descripcion, // Renombrado de txData
-      'date': fechaSeleccionada.toIso8601String(), 'reflejado': yaReflejado,
+    _revertirMovimientoOriginal();
+    _aplicarNuevoMovimiento();
+    Hive.box('movimientos').put(widget.llaveMovimiento, {
+      ...widget.datosMovimiento,
+      'amount': monto,
+      'description': descripcion,
+      'date': fechaSeleccionada.toIso8601String(),
+      'reflejado': yaReflejado,
+      'tipoGasto': tipo == 'Gasto' ? tipoGasto : null,
     });
     Navigator.pop(context);
   }
 
-  int? _encontrarLlaveCuentaPorNombre(String nombre) { // Renombrado de _findAccountKeyByName, name
-    final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
+  int? _encontrarLlaveCuentaPorNombre(String nombre) {
+    final cajaBancos = Hive.box('bancos');
     for (var key in cajaBancos.keys) {
-      if (cajaBancos.get(key)['name'] == nombre) return key; // Renombrado de name
+      if (cajaBancos.get(key)['name'] == nombre) {
+        return key;
+      }
     }
     return null;
   }
@@ -1471,43 +2008,72 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> { /
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Chip(label: Text('Tipo: $tipo', style: const TextStyle(fontWeight: FontWeight.bold))), // Renombrado de type
+            Chip(
+              label: Text(
+                'Tipo: $tipo',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
             const SizedBox(height: 16),
+            if (tipo == 'Gasto') ...[
+              DropdownButtonFormField<String>(
+                value: tipoGasto,
+                decoration: const InputDecoration(labelText: 'Tipo de Gasto'),
+                items: const [
+                  DropdownMenuItem(value: 'Personal', child: Text('Personal')),
+                  DropdownMenuItem(value: 'Hogar', child: Text('Hogar')),
+                ],
+                onChanged: (String? value) {
+                  setState(() => tipoGasto = value ?? 'Personal');
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
             TextField(
-              controller: _controladorMonto, keyboardType: TextInputType.number, // Renombrado de _amountController
+              controller: _controladorMonto,
+              keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Monto'),
-              onChanged: (val) => monto = double.tryParse(val) ?? 0, // Renombrado de amount
+              onChanged: (val) => monto = double.tryParse(val) ?? 0,
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _controladorDescripcion, decoration: const InputDecoration(labelText: 'Descripción'), // Renombrado de _descController
-              onChanged: (val) => descripcion = val.trim(), // Renombrado de description
+              controller: _controladorDescripcion,
+              decoration: const InputDecoration(labelText: 'Descripción'),
+              onChanged: (val) => descripcion = val.trim(),
             ),
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Fecha del movimiento'),
-              subtitle: Text(DateFormat('EEEE, d MMM y', 'es').format(fechaSeleccionada)),
+              subtitle: Text(
+                DateFormat('EEEE, d MMM y', 'es').format(fechaSeleccionada),
+              ),
               trailing: const Icon(Icons.calendar_today_outlined),
               onTap: () async {
-                final seleccionada = await showDatePicker( // Renombrado de picked
-                  context: context, initialDate: fechaSeleccionada,
-                  firstDate: DateTime(DateTime.now().year - 5), lastDate: DateTime.now(),
+                final seleccionada = await showDatePicker(
+                  context: context,
+                  initialDate: fechaSeleccionada,
+                  firstDate: DateTime(DateTime.now().year - 5),
+                  lastDate: DateTime.now(),
                   locale: const Locale('es'),
                 );
-                if (seleccionada != null) setState(() => fechaSeleccionada = seleccionada); // Renombrado de picked
+                if (seleccionada != null) {
+                  setState(() => fechaSeleccionada = seleccionada);
+                }
               },
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('No afectó saldo'),
-              subtitle: const Text('El saldo no fue modificado por esta transacción.'),
+              subtitle: const Text(
+                'El saldo no fue modificado por esta transacción.',
+              ),
               value: yaReflejado,
               onChanged: (val) => setState(() => yaReflejado = val),
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: _actualizarMovimiento, // Renombrado de _updateTransaction
+              onPressed: _actualizarMovimiento,
               child: const Text('Actualizar Movimiento'),
             ),
           ],
@@ -1517,39 +2083,47 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> { /
   }
 }
 
-class PantallaHistorialMovimientos extends StatefulWidget { // Renombrado de TransactionHistoryScreen
+class PantallaHistorialMovimientos extends StatefulWidget {
   const PantallaHistorialMovimientos({super.key});
   @override
-  EstadoPantallaHistorialMovimientos createState() => EstadoPantallaHistorialMovimientos(); // Renombrado de TransactionHistoryScreenState
+  EstadoPantallaHistorialMovimientos createState() =>
+      EstadoPantallaHistorialMovimientos();
 }
 
-class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimientos> { // Renombrado de TransactionHistoryScreenState
-  final cajaMovimientos = Hive.box('movimientos'); // Renombrado de transactionsBox
-  DateTime? mesSeleccionado; // Renombrado de selectedMonth
+class EstadoPantallaHistorialMovimientos
+    extends State<PantallaHistorialMovimientos> {
+  final cajaMovimientos = Hive.box('movimientos');
+  DateTime? mesSeleccionado;
 
   @override
   void initState() {
     super.initState();
-    mesSeleccionado = DateTime(DateTime.now().year, DateTime.now().month); // Renombrado de selectedMonth
+    mesSeleccionado = DateTime(DateTime.now().year, DateTime.now().month);
   }
 
-  // Método para ir al mes anterior
   void _irMesAnterior() {
-    setState(() {
-      mesSeleccionado = DateTime(mesSeleccionado!.year, mesSeleccionado!.month - 1, 1);
-    });
+    setState(
+      () => mesSeleccionado = DateTime(
+        mesSeleccionado!.year,
+        mesSeleccionado!.month - 1,
+        1,
+      ),
+    );
   }
 
-  // Método para ir al mes siguiente
   void _irMesSiguiente() {
-    setState(() {
-      mesSeleccionado = DateTime(mesSeleccionado!.year, mesSeleccionado!.month + 1, 1);
-    });
+    setState(
+      () => mesSeleccionado = DateTime(
+        mesSeleccionado!.year,
+        mesSeleccionado!.month + 1,
+        1,
+      ),
+    );
   }
 
   Map<String, double> calcularResumenMensual(DateTime mes) {
     double ingresos = 0, gastos = 0, transferencias = 0;
-    for (var mov in cajaMovimientos.values) { // Renombrado de transactionsBox, tx
+    for (var mov in cajaMovimientos.values) {
       final fecha = DateTime.parse(mov['date']);
       if (fecha.month == mes.month && fecha.year == mes.year) {
         final monto = mov['amount'] as double;
@@ -1558,51 +2132,84 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
         if (mov['type'] == 'Transferencia') transferencias += monto;
       }
     }
-    // Calculate balance
     double balance = ingresos - gastos;
-    return {'ingresos': ingresos, 'gastos': gastos, 'movimientos': ingresos + gastos + (transferencias * 2), 'balance': balance};
+    return {
+      'ingresos': ingresos,
+      'gastos': gastos,
+      'movimientos': ingresos + gastos + (transferencias * 2),
+      'balance': balance,
+    };
   }
 
   Future<void> exportarMovimientosAExcel(DateTime mes) async {
     final excel = Excel.createExcel();
-    final hoja = excel['Movimientos_${DateFormat('MM_yyyy').format(mes)}']; // Renombrado de sheet
-    hoja.appendRow(const ['Fecha', 'Tipo', 'Cuenta Origen', 'Cuenta Destino', 'Monto', 'Descripción']);
-    for (var mov in cajaMovimientos.values) { // Renombrado de transactionsBox, tx
+    final hoja = excel['Movimientos_${DateFormat('MM_yyyy').format(mes)}'];
+    hoja.appendRow(const [
+      'Fecha',
+      'Tipo',
+      'Tipo Gasto',
+      'Cuenta Origen',
+      'Cuenta Destino',
+      'Monto',
+      'Descripción',
+    ]);
+    for (var mov in cajaMovimientos.values) {
       final fechaMov = DateTime.parse(mov['date']);
       if (fechaMov.year == mes.year && fechaMov.month == mes.month) {
         hoja.appendRow([
-          DateFormat('yyyy-MM-dd HH:mm').format(fechaMov), mov['type'], mov['account'] ?? mov['from'] ?? '',
-          mov['to'] ?? '', mov['amount'], mov['description'] ?? '',
+          DateFormat('yyyy-MM-dd HH:mm').format(fechaMov),
+          mov['type'],
+          mov['tipoGasto'] ?? '',
+          mov['account'] ?? mov['from'] ?? '',
+          mov['to'] ?? '',
+          mov['amount'],
+          mov['description'] ?? '',
         ]);
       }
     }
     try {
-      final dir = await obtenerRutaDescarga(); // Renombrado de getDownloadPath
+      final dir = await obtenerRutaDescarga();
       if (dir == null) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo encontrar la carpeta de descargas.')));
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo encontrar la carpeta de descargas.'),
+          ),
+        );
         return;
       }
-      final rutaArchivo = '$dir/movimientos_${DateFormat('MMMM_yyyy', 'es').format(mes)}.xlsx'; // Renombrado de filePath
-      final bytesArchivo = excel.save(); // Renombrado de fileBytes
+      final rutaArchivo =
+          '$dir/movimientos_${DateFormat('MMMM_yyyy', 'es').format(mes)}.xlsx';
+      final bytesArchivo = excel.save();
       if (bytesArchivo != null) {
         File(rutaArchivo)
           ..createSync(recursive: true)
           ..writeAsBytesSync(bytesArchivo);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Archivo guardado en: $rutaArchivo')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Archivo guardado en: $rutaArchivo')),
+          );
+        }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al exportar: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al exportar: $e')));
+      }
     }
   }
 
-  Future<String?> obtenerRutaDescarga() async { // Renombrado de getDownloadPath
-    Directory? directorio; // Renombrado de directory
+  Future<String?> obtenerRutaDescarga() async {
+    Directory? directorio;
     try {
       if (Platform.isIOS) {
         directorio = await getApplicationDocumentsDirectory();
       } else {
         directorio = Directory('/storage/emulated/0/Download');
-        if (!await directorio.exists()) directorio = await getExternalStorageDirectory();
+        if (!await directorio.exists()) {
+          directorio = await getExternalStorageDirectory();
+        }
       }
     } catch (err) {
       debugPrint("No se pudo obtener la ruta de la carpeta de descargas");
@@ -1610,15 +2217,18 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
     return directorio?.path;
   }
 
-  void _eliminarMovimiento(dynamic llave, Map mov) { // Renombrado de _deleteTransaction, key, tx
-    final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
+  void _eliminarMovimiento(dynamic llave, Map mov) {
+    final cajaBancos = Hive.box('bancos');
     final reflejado = mov['reflejado'] == true;
     final tipo = mov['type'];
     final monto = mov['amount'];
 
-    int? encontrarLlave(String? n) { // Renombrado de findKey, name
+    int? encontrarLlave(String? n) {
       try {
-        return cajaBancos.keys.firstWhere((k) => cajaBancos.get(k)['name'] == n, orElse: () => -1);
+        return cajaBancos.keys.firstWhere(
+          (k) => cajaBancos.get(k)['name'] == n,
+          orElse: () => -1,
+        );
       } catch (e) {
         return null;
       }
@@ -1626,24 +2236,34 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
 
     if (!reflejado) {
       if (tipo == 'Ingreso' || tipo == 'Gasto') {
-        final llaveCuenta = encontrarLlave(mov['account']); // Renombrado de accKey
+        final llaveCuenta = encontrarLlave(mov['account']);
         if (llaveCuenta != null && llaveCuenta != -1) {
-          final cuenta = cajaBancos.get(llaveCuenta); // Renombrado de acc
-          final nuevoBalance = cuenta['balance'] + (tipo == 'Ingreso' ? -monto : monto);
+          final cuenta = cajaBancos.get(llaveCuenta);
+          final nuevoBalance =
+              cuenta['balance'] + (tipo == 'Ingreso' ? -monto : monto);
           cajaBancos.put(llaveCuenta, {...cuenta, 'balance': nuevoBalance});
         }
       } else if (tipo == 'Transferencia') {
-        final llaveOrigen = encontrarLlave(mov['from']); // Renombrado de fromKey
-        final llaveDestino = encontrarLlave(mov['to']); // Renombrado de toKey
-        if (llaveOrigen != null && llaveOrigen != -1 && llaveDestino != null && llaveDestino != -1) {
-          final cuentaOrigen = cajaBancos.get(llaveOrigen); // Renombrado de fromAcc
-          final cuentaDestino = cajaBancos.get(llaveDestino); // Renombrado de toAcc
-          cajaBancos.put(llaveOrigen, {...cuentaOrigen, 'balance': cuentaOrigen['balance'] + monto});
-          cajaBancos.put(llaveDestino, {...cuentaDestino, 'balance': cuentaDestino['balance'] - monto});
+        final llaveOrigen = encontrarLlave(mov['from']);
+        final llaveDestino = encontrarLlave(mov['to']);
+        if (llaveOrigen != null &&
+            llaveOrigen != -1 &&
+            llaveDestino != null &&
+            llaveDestino != -1) {
+          final cuentaOrigen = cajaBancos.get(llaveOrigen);
+          final cuentaDestino = cajaBancos.get(llaveDestino);
+          cajaBancos.put(llaveOrigen, {
+            ...cuentaOrigen,
+            'balance': cuentaOrigen['balance'] + monto,
+          });
+          cajaBancos.put(llaveDestino, {
+            ...cuentaDestino,
+            'balance': cuentaDestino['balance'] - monto,
+          });
         }
       }
     }
-    cajaMovimientos.delete(llave); // Renombrado de transactionsBox, key
+    cajaMovimientos.delete(llave);
     setState(() {});
   }
 
@@ -1660,7 +2280,9 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
             ),
             Expanded(
               child: Text(
-                mesSeleccionado != null ? DateFormat.yMMMM('es').format(mesSeleccionado!) : 'Historial',
+                mesSeleccionado != null
+                    ? DateFormat.yMMMM('es').format(mesSeleccionado!)
+                    : 'Historial',
                 textAlign: TextAlign.center,
               ),
             ),
@@ -1671,48 +2293,79 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
           ],
         ),
         actions: [
-          if (mesSeleccionado != null) // Renombrado de selectedMonth
+          if (mesSeleccionado != null)
             IconButton(
               icon: const Icon(Icons.download_for_offline_outlined),
               tooltip: 'Exportar a Excel',
-              onPressed: () => exportarMovimientosAExcel(mesSeleccionado!), // Renombrado de selectedMonth
+              onPressed: () => exportarMovimientosAExcel(mesSeleccionado!),
             ),
           IconButton(
             icon: const Icon(Icons.date_range_outlined),
             tooltip: 'Filtrar por mes',
             onPressed: () async {
               final ahora = DateTime.now();
-              final seleccionada = await showDatePicker( // Renombrado de picked
-                context: context, initialDate: mesSeleccionado ?? ahora, firstDate: DateTime(ahora.year - 5), // Renombrado de selectedMonth
-                lastDate: ahora, locale: const Locale('es'), initialEntryMode: DatePickerEntryMode.calendarOnly,
+              final seleccionada = await showDatePicker(
+                context: context,
+                initialDate: mesSeleccionado ?? ahora,
+                firstDate: DateTime(ahora.year - 5),
+                lastDate: ahora,
+                locale: const Locale('es'),
+                initialEntryMode: DatePickerEntryMode.calendarOnly,
               );
-              if (seleccionada != null) setState(() => mesSeleccionado = DateTime(seleccionada.year, seleccionada.month)); // Renombrado de selectedMonth, picked
+              if (seleccionada != null) {
+                setState(
+                  () => mesSeleccionado = DateTime(
+                    seleccionada.year,
+                    seleccionada.month,
+                  ),
+                );
+              }
             },
           ),
-          if (mesSeleccionado != null) // Renombrado de selectedMonth
-            IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => mesSeleccionado = null)), // Renombrado de selectedMonth
+          if (mesSeleccionado != null)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () => setState(() => mesSeleccionado = null),
+            ),
         ],
       ),
       body: ValueListenableBuilder(
-        valueListenable: cajaMovimientos.listenable(), // Renombrado de transactionsBox
+        valueListenable: cajaMovimientos.listenable(),
         builder: (context, Box box, _) {
-          final todasLasLlaves = box.keys.toList(); // Renombrado de allKeys
-          final pares = List.generate(box.length, (i) => MapEntry(todasLasLlaves[i], box.get(todasLasLlaves[i]))); // Renombrado de pairs, allKeys
-          pares.sort((a, b) => DateTime.parse(b.value['date']).compareTo(DateTime.parse(a.value['date'])));
-          final paresFiltrados = mesSeleccionado == null ? pares : pares.where((e) { // Renombrado de filteredPairs, selectedMonth
-            final fechaMov = DateTime.parse(e.value['date']); // Renombrado de txDate
-            return fechaMov.year == mesSeleccionado!.year && fechaMov.month == mesSeleccionado!.month; // Renombrado de selectedMonth
-          }).toList();
+          final todasLasLlaves = box.keys.toList();
+          final pares = List.generate(
+            box.length,
+            (i) => MapEntry(todasLasLlaves[i], box.get(todasLasLlaves[i])),
+          );
+          pares.sort(
+            (a, b) => DateTime.parse(
+              b.value['date'],
+            ).compareTo(DateTime.parse(a.value['date'])),
+          );
+          final paresFiltrados = mesSeleccionado == null
+              ? pares
+              : pares.where((e) {
+                  final fechaMov = DateTime.parse(e.value['date']);
+                  return fechaMov.year == mesSeleccionado!.year &&
+                      fechaMov.month == mesSeleccionado!.month;
+                }).toList();
 
           if (paresFiltrados.isEmpty) {
-            return const Center(child: Text('No hay movimientos en este periodo.'));
+            return const Center(
+              child: Text('No hay movimientos en este periodo.'),
+            );
           }
 
           return ListView(
             padding: const EdgeInsets.all(8),
             children: [
-              if (mesSeleccionado != null) _construirTarjetaResumenMensualHistorial(calcularResumenMensual(mesSeleccionado!)), // Renombrado de selectedMonth, _buildMonthlySummaryCard
-              ...paresFiltrados.map((entrada) => _construirTileMovimiento(entrada.key, entrada.value)), // Renombrado de filteredPairs, _buildTransactionTile, entry
+              if (mesSeleccionado != null)
+                _construirTarjetaResumenMensualHistorial(
+                  calcularResumenMensual(mesSeleccionado!),
+                ),
+              ...paresFiltrados.map(
+                (e) => _construirTileMovimiento(e.key, e.value),
+              ),
             ],
           );
         },
@@ -1720,7 +2373,7 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
     );
   }
 
-  Widget _construirTarjetaResumenMensualHistorial(Map<String, double> resumen) { // Renombrado de _buildMonthlySummaryCard
+  Widget _construirTarjetaResumenMensualHistorial(Map<String, double> resumen) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Padding(
@@ -1728,19 +2381,44 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Resumen del Mes', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Resumen del Mes',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const Divider(height: 24),
-            _construirFilaResumenHistorial('Ingresos', resumen['ingresos']!, Colors.green.shade600), // Renombrado de _buildSummaryRow
-            _construirFilaResumenHistorial('Gastos', resumen['gastos']!, TemaApp._colorError), // Renombrado de _buildSummaryRow, AppTheme._errorColor
-            _construirFilaResumenHistorial('Balance del Mes', resumen['balance']!, resumen['balance']! >= 0 ? Colors.green.shade600 : TemaApp._colorError), // New row for balance
-            _construirFilaResumenHistorial('Total Movimientos', resumen['movimientos']!, Theme.of(context).colorScheme.primary), // Renombrado de _buildSummaryRow
+            _construirFilaResumenHistorial(
+              'Ingresos',
+              resumen['ingresos']!,
+              Colors.green.shade600,
+            ),
+            _construirFilaResumenHistorial(
+              'Gastos',
+              resumen['gastos']!,
+              TemaApp._colorError,
+            ),
+            _construirFilaResumenHistorial(
+              'Balance del Mes',
+              resumen['balance']!,
+              resumen['balance']! >= 0
+                  ? Colors.green.shade600
+                  : TemaApp._colorError,
+            ),
+            _construirFilaResumenHistorial(
+              'Total Movimientos',
+              resumen['movimientos']!,
+              Theme.of(context).colorScheme.primary,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _construirFilaResumenHistorial(String titulo, double monto, Color color) { // Renombrado de _buildSummaryRow
+  Widget _construirFilaResumenHistorial(
+    String titulo,
+    double monto,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -1748,18 +2426,22 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
         children: [
           Text(titulo, style: const TextStyle(fontSize: 16)),
           Text(
-            '\$${formatoMoneda.format(monto)}', // Renombrado de formatCurrency
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
+            formatoMoneda.format(monto),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _construirTileMovimiento(dynamic llave, Map mov) { // Renombrado de _buildTransactionTile, key, tx
+  Widget _construirTileMovimiento(dynamic llave, Map mov) {
     final fecha = DateTime.parse(mov['date']);
-    final fechaFormateada = DateFormat('dd MMM, HH:mm', 'es').format(fecha); // Renombrado de formattedDate
-    IconData icono; // Renombrado de icon
+    final fechaFormateada = DateFormat('dd MMM, HH:mm', 'es').format(fecha);
+    IconData icono;
     Color color;
 
     switch (mov['type']) {
@@ -1769,7 +2451,7 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
         break;
       case 'Gasto':
         icono = Icons.arrow_upward_rounded;
-        color = TemaApp._colorError; // Renombrado de AppTheme._colorError
+        color = TemaApp._colorError;
         break;
       case 'Transferencia':
         icono = Icons.swap_horiz_rounded;
@@ -1782,96 +2464,164 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
 
     String titulo = mov['type'] == 'Transferencia'
         ? '${mov['from']} → ${mov['to']}'
-        : (mov['description']?.isNotEmpty == true ? mov['description'] : mov['account']); // Renombrado de title
+        : (mov['description']?.isNotEmpty == true
+              ? mov['description']
+              : mov['account']);
+
+    String subtitulo = fechaFormateada;
+    if (mov['type'] == 'Gasto' && mov['tipoGasto'] != null) {
+      subtitulo += ' (${mov['tipoGasto']})';
+    }
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       child: ListTile(
-        leading: CircleAvatar(backgroundColor: color.withAlpha(26), child: Icon(icono, color: color)), // ~10% opacity // Renombrado de icon
-        title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)), // Renombrado de title
-        subtitle: Text(fechaFormateada), // Renombrado de formattedDate
-        trailing: Text(
-          '${mov['type'] == 'Ingreso' ? '+' : '-'}\$${formatoMoneda.format(mov['amount'])}', // Renombrado de formatCurrency
-          style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16),
+        leading: CircleAvatar(
+          backgroundColor: color.withAlpha(26),
+          child: Icon(icono, color: color),
         ),
-        onTap: () => _mostrarDetallesMovimiento(llave, mov, color, icono), // Renombrado de _showTransactionDetails, key, tx, icon
+        title: Text(
+          titulo,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(subtitulo),
+        trailing: Text(
+          '${mov['type'] == 'Ingreso' ? '+' : '-'}${formatoMoneda.format(mov['amount'])}',
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        onTap: () => _mostrarDetallesMovimiento(llave, mov, color, icono),
       ),
     );
   }
 
-  void _mostrarDetallesMovimiento(dynamic llave, Map mov, Color color, IconData icono) { // Renombrado de _showTransactionDetails, key, tx, icon
+  void _mostrarDetallesMovimiento(
+    dynamic llave,
+    Map mov,
+    Color color,
+    IconData icono,
+  ) {
     final fecha = DateTime.parse(mov['date']);
-    final fechaFormateada = DateFormat('EEEE, d MMM y, HH:mm', 'es').format(fecha); // Renombrado de formattedDate
+    final fechaFormateada = DateFormat(
+      'EEEE, d MMM y, HH:mm',
+      'es',
+    ).format(fecha);
 
     showModalBottomSheet(
-        context: context,
-        builder: (context) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  CircleAvatar(backgroundColor: color.withAlpha(26), child: Icon(icono, color: color)), // ~10% opacity // Renombrado de icon
+      context: context,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: color.withAlpha(26),
+                    child: Icon(icono, color: color),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: Text(mov['type'], style: Theme.of(context).textTheme.headlineSmall)),
-                  Text('\$${formatoMoneda.format(mov['amount'])}', style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: color)), // Renombrado de formatCurrency
-                ]),
-                const Divider(height: 32),
-                if (mov['description'] != null && mov['description'].isNotEmpty)
-                  _filaDetalle('Descripción:', mov['description']), // Renombrado de _detailRow
-                if (mov['type'] == 'Ingreso' || mov['type'] == 'Gasto')
-                  _filaDetalle('Cuenta:', mov['account']), // Renombrado de _detailRow
-                if (mov['type'] == 'Transferencia') ...[
-                  _filaDetalle('Desde:', mov['from']), // Renombrado de _detailRow
-                  _filaDetalle('Hacia:', mov['to']), // Renombrado de _detailRow
-                ],
-                _filaDetalle('Fecha:', fechaFormateada), // Renombrado de _detailRow, formattedDate
-                if (mov['reflejado'] == true)
-                  _filaDetalle('Estado:', 'No afectó el saldo de la cuenta.', icono: Icons.push_pin_outlined), // Renombrado de _detailRow
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Eliminar'),
-                      style: OutlinedButton.styleFrom(foregroundColor: TemaApp._colorError, side: const BorderSide(color: TemaApp._colorError)), // Renombrado de AppTheme._colorError
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _eliminarMovimiento(llave, mov); // Renombrado de _deleteTransaction, key, tx
-                      },
+                  Expanded(
+                    child: Text(
+                      mov['type'],
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    const Spacer(),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Editar'),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => PantallaEditarMovimiento(llaveMovimiento: llave, datosMovimiento: mov), // Renombrado de EditTransactionScreen, txKey, txData
-                        )).then((_) => setState(() {}));
-                      },
-                    )
-                  ],
-                )
+                  ),
+                  Text(
+                    formatoMoneda.format(mov['amount']),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.headlineSmall?.copyWith(color: color),
+                  ),
+                ],
+              ),
+              const Divider(height: 32),
+              if (mov['description'] != null && mov['description'].isNotEmpty)
+                _filaDetalle('Descripción:', mov['description']),
+              if (mov['type'] == 'Ingreso' || mov['type'] == 'Gasto')
+                _filaDetalle('Cuenta:', mov['account']),
+              if (mov['type'] == 'Transferencia') ...[
+                _filaDetalle('Desde:', mov['from']),
+                _filaDetalle('Hacia:', mov['to']),
               ],
-            ),
-          );
-        }
+              _filaDetalle('Fecha:', fechaFormateada),
+              if (mov['reflejado'] == true)
+                _filaDetalle(
+                  'Estado:',
+                  'No afectó el saldo de la cuenta.',
+                  icono: Icons.push_pin_outlined,
+                ),
+              if (mov['type'] == 'Gasto' && mov['tipoGasto'] != null)
+                _filaDetalle(
+                  'Tipo de Gasto:',
+                  mov['tipoGasto'],
+                  icono: Icons.category_outlined,
+                ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Eliminar'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: TemaApp._colorError,
+                      side: const BorderSide(color: TemaApp._colorError),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _eliminarMovimiento(llave, mov);
+                    },
+                  ),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Editar'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PantallaEditarMovimiento(
+                            llaveMovimiento: llave,
+                            datosMovimiento: mov,
+                          ),
+                        ),
+                      ).whenComplete(() {
+                        setState(() {});
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _filaDetalle(String etiqueta, String valor, {IconData? icono}) { // Renombrado de _detailRow, label, value, icon
+  Widget _filaDetalle(String etiqueta, String valor, {IconData? icono}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icono ?? Icons.label_important_outline, size: 18, color: Theme.of(context).colorScheme.primary), // Renombrado de icon
+          Icon(
+            icono ?? Icons.label_important_outline,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(width: 8),
-          Text('$etiqueta ', style: const TextStyle(fontWeight: FontWeight.bold)), // Renombrado de label
-          Expanded(child: Text(valor)), // Renombrado de value
+          Text(
+            '$etiqueta ',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Expanded(child: Text(valor)),
         ],
       ),
     );
@@ -1879,56 +2629,712 @@ class EstadoPantallaHistorialMovimientos extends State<PantallaHistorialMovimien
 }
 
 //==============================================================================
-// 🔄 PANTALLA DE DÉBITOS AUTOMÁTICOS (DebitosScreen)
+// 🏡 HOME FINANCES SCREEN
 //==============================================================================
 
-class PantallaDebitos extends StatefulWidget { // Renombrado de DebitosScreen
+class PantallaFinanzasHogar extends StatefulWidget {
+  const PantallaFinanzasHogar({super.key});
+
+  @override
+  EstadoPantallaFinanzasHogar createState() => EstadoPantallaFinanzasHogar();
+}
+
+class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
+  Future<void> exportarMovimientosAExcel(DateTime mes) async {
+    final excel = Excel.createExcel();
+    final hoja =
+        excel['Movimientos_Hogar_${DateFormat('MM_yyyy').format(mes)}'];
+    hoja.appendRow(const [
+      'Fecha',
+      'Tipo',
+      'Tipo Gasto',
+      'Cuenta Origen',
+      'Cuenta Destino',
+      'Monto',
+      'Descripción',
+    ]);
+
+    final movimientosMes = Hive.box('movimientos')
+        .toMap()
+        .entries
+        .where((entry) {
+          final mov = entry.value;
+          final fechaMov = DateTime.parse(mov['date']);
+          return fechaMov.year == mes.year && fechaMov.month == mes.month;
+        })
+        .map((entry) => entry.value)
+        .toList();
+
+    for (var mov in movimientosMes) {
+      final fechaMov = DateTime.parse(mov['date']);
+      hoja.appendRow([
+        DateFormat('yyyy-MM-dd HH:mm').format(fechaMov),
+        mov['type'],
+        mov['tipoGasto'] ?? '',
+        mov['account'] ?? mov['from'] ?? '',
+        mov['to'] ?? '',
+        mov['amount'],
+        mov['description'] ?? '',
+      ]);
+    }
+
+    try {
+      final dir = await obtenerRutaDescarga();
+      if (dir == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo encontrar la carpeta de descargas.'),
+          ),
+        );
+        return;
+      }
+
+      final rutaArchivo =
+          '$dir/movimientos_hogar_${DateFormat('MMMM_yyyy', 'es').format(mes)}.xlsx';
+      final bytesArchivo = excel.save();
+      if (bytesArchivo != null) {
+        File(rutaArchivo)
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(bytesArchivo);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Archivo guardado en: $rutaArchivo')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al exportar: $e')));
+      }
+    }
+  }
+
+  Future<String?> obtenerRutaDescarga() async {
+    Directory? directorio;
+    try {
+      if (Platform.isIOS) {
+        directorio = await getApplicationDocumentsDirectory();
+      } else {
+        directorio = Directory('/storage/emulated/0/Download');
+        if (!await directorio.exists()) {
+          directorio = await getExternalStorageDirectory();
+        }
+      }
+    } catch (err) {
+      debugPrint("No se pudo obtener la ruta de la carpeta de descargas");
+    }
+    return directorio?.path;
+  }
+
+  final cajaMovimientos = Hive.box('movimientos');
+  final cajaFinanzasHogar = Hive.box('finanzasHogar');
+  DateTime mesSeleccionado = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+  );
+
+  final _controladorIngresoPareja = TextEditingController();
+  final _controladorGastoPareja = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPartnerData();
+    _controladorIngresoPareja.addListener(_savePartnerData);
+    _controladorGastoPareja.addListener(_savePartnerData);
+  }
+
+  @override
+  void dispose() {
+    _controladorIngresoPareja.removeListener(_savePartnerData);
+    _controladorGastoPareja.removeListener(_savePartnerData);
+    _controladorIngresoPareja.dispose();
+    _controladorGastoPareja.dispose();
+    super.dispose();
+  }
+
+  String _getClaveMes() => DateFormat('yyyy-MM').format(mesSeleccionado);
+
+  void _loadPartnerData() {
+    final claveMes = _getClaveMes();
+    final datosMes = cajaFinanzasHogar.get(claveMes, defaultValue: {});
+    _controladorIngresoPareja.text = (datosMes['ingresoPareja'] ?? 0.0)
+        .toStringAsFixed(0);
+    _controladorGastoPareja.text = (datosMes['gastoPareja'] ?? 0.0)
+        .toStringAsFixed(0);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  // --- INICIO: FUNCIÓN CORREGIDA (SECCIÓN 4) ---
+  /// Guarda los datos de la pareja y actualiza la UI para reflejar los cambios.
+  /// Saves partner's data and updates the UI to reflect changes.
+  void _savePartnerData() {
+    final claveMes = _getClaveMes();
+    final datosMes = cajaFinanzasHogar.get(claveMes, defaultValue: {});
+
+    datosMes['ingresoPareja'] =
+        double.tryParse(_controladorIngresoPareja.text) ?? 0.0;
+    datosMes['gastoPareja'] =
+        double.tryParse(_controladorGastoPareja.text) ?? 0.0;
+
+    cajaFinanzasHogar.put(claveMes, datosMes);
+
+    // Se llama a setState para forzar una reconstrucción del widget y
+    // recalcular los totales con los nuevos valores ingresados.
+    // setState is called to force a widget rebuild and recalculate
+    // totals with the newly entered values.
+    if (mounted) {
+      setState(() {});
+    }
+  }
+  // --- FIN: FUNCIÓN CORREGIDA (SECCIÓN 4) ---
+
+  void _marcarComoSaldado(bool saldado) {
+    final claveMes = _getClaveMes();
+    final datosMes = cajaFinanzasHogar.get(claveMes, defaultValue: {});
+    datosMes['saldado'] = saldado;
+    cajaFinanzasHogar.put(claveMes, datosMes);
+    setState(() {});
+  }
+
+  void _irMesAnterior() {
+    setState(() {
+      mesSeleccionado = DateTime(
+        mesSeleccionado.year,
+        mesSeleccionado.month - 1,
+        1,
+      );
+      _loadPartnerData();
+    });
+  }
+
+  void _irMesSiguiente() {
+    setState(() {
+      mesSeleccionado = DateTime(
+        mesSeleccionado.year,
+        mesSeleccionado.month + 1,
+        1,
+      );
+      _loadPartnerData();
+    });
+  }
+
+  Map<String, double> calcularResumenHogar(DateTime mes) {
+    double misIngresos = 0;
+    double misGastosHogar = 0;
+
+    for (var mov in cajaMovimientos.values) {
+      final fecha = DateTime.parse(mov['date']);
+      if (fecha.month == mes.month && fecha.year == mes.year) {
+        final monto = mov['amount'] as double;
+        if (mov['type'] == 'Ingreso') {
+          misIngresos += monto;
+        } else if (mov['type'] == 'Gasto' && mov['tipoGasto'] == 'Hogar') {
+          misGastosHogar += monto;
+        }
+      }
+    }
+
+    final ingresoPareja =
+        double.tryParse(_controladorIngresoPareja.text) ?? 0.0;
+    final gastoPareja = double.tryParse(_controladorGastoPareja.text) ?? 0.0;
+
+    return {
+      'misIngresos': misIngresos,
+      'misGastosHogar': misGastosHogar,
+      'ingresoPareja': ingresoPareja,
+      'gastoPareja': gastoPareja,
+      'totalIngresos': misIngresos + ingresoPareja,
+      'totalGastosHogar': misGastosHogar + gastoPareja,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios),
+              onPressed: _irMesAnterior,
+            ),
+            Expanded(
+              child: Text(
+                DateFormat.yMMMM('es').format(mesSeleccionado),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward_ios),
+              onPressed: _irMesSiguiente,
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.date_range_outlined),
+            tooltip: 'Filtrar por mes',
+            onPressed: () async {
+              final ahora = DateTime.now();
+              final seleccionada = await showDatePicker(
+                context: context,
+                initialDate: mesSeleccionado,
+                firstDate: DateTime(ahora.year - 5),
+                lastDate: ahora,
+                locale: const Locale('es'),
+              );
+              if (seleccionada != null) {
+                setState(() {
+                  mesSeleccionado = DateTime(
+                    seleccionada.year,
+                    seleccionada.month,
+                  );
+                  _loadPartnerData();
+                });
+              }
+            },
+          ),
+        ],
+      ),
+      body: ValueListenableBuilder(
+        valueListenable: Hive.box('movimientos').listenable(),
+        builder: (context, Box box, _) {
+          final resumen = calcularResumenHogar(mesSeleccionado);
+
+          final todosLosMovimientos = box.values.where((mov) {
+            final fechaMov = DateTime.parse(mov['date']);
+            return fechaMov.year == mesSeleccionado.year &&
+                fechaMov.month == mesSeleccionado.month &&
+                (mov['type'] == 'Ingreso' ||
+                    (mov['type'] == 'Gasto' && mov['tipoGasto'] == 'Hogar'));
+          }).toList();
+
+          todosLosMovimientos.sort(
+            (a, b) =>
+                DateTime.parse(b['date']).compareTo(DateTime.parse(a['date'])),
+          );
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildCardDatosPareja(),
+              const SizedBox(height: 16),
+              _buildCardResumenIngresos(resumen),
+              const SizedBox(height: 16),
+              _buildCardResumenGastos(resumen),
+              const SizedBox(height: 16),
+              _buildCardLiquidacion(resumen),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Movimientos del Hogar del Mes',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: 'Exportar a Excel',
+                    onPressed: () => exportarMovimientosAExcel(mesSeleccionado),
+                  ),
+                ],
+              ),
+              const Divider(),
+              if (todosLosMovimientos.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Center(
+                    child: Text('No hay ingresos o gastos de hogar este mes.'),
+                  ),
+                )
+              else
+                ...todosLosMovimientos.map(
+                  (mov) => _construirTileMovimiento(mov),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Card _buildCardDatosPareja() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Datos de tu Pareja',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controladorIngresoPareja,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: false,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Ingreso mensual de tu pareja',
+                prefixText: '\$ ',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controladorGastoPareja,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: false,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Gasto de hogar de tu pareja',
+                prefixText: '\$ ',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Card _buildCardResumenIngresos(Map<String, double> resumen) {
+    final totalIngresos = resumen['totalIngresos']!;
+    final misIngresos = resumen['misIngresos']!;
+    final ingresoPareja = resumen['ingresoPareja']!;
+
+    final miPorcentaje = totalIngresos > 0
+        ? (misIngresos / totalIngresos) * 100
+        : 0;
+    final porcentajePareja = totalIngresos > 0
+        ? (ingresoPareja / totalIngresos) * 100
+        : 0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Resumen de Ingresos',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const Divider(height: 20),
+            _buildFilaResumen(
+              'Mis Ingresos',
+              misIngresos,
+              Colors.blue,
+              '${miPorcentaje.toStringAsFixed(1)}%',
+            ),
+            _buildFilaResumen(
+              'Ingresos Pareja',
+              ingresoPareja,
+              Colors.pink,
+              '${porcentajePareja.toStringAsFixed(1)}%',
+            ),
+            const Divider(height: 20),
+            _buildFilaResumen(
+              'Total Ingresos',
+              totalIngresos,
+              Theme.of(context).textTheme.bodyLarge!.color!,
+              '100%',
+              true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Card _buildCardResumenGastos(Map<String, double> resumen) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Resumen de Gastos del Hogar',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const Divider(height: 20),
+            _buildFilaResumen(
+              'Mis Gastos Hogar',
+              resumen['misGastosHogar']!,
+              Colors.blue,
+            ),
+            _buildFilaResumen(
+              'Gastos Hogar Pareja',
+              resumen['gastoPareja']!,
+              Colors.pink,
+            ),
+            const Divider(height: 20),
+            _buildFilaResumen(
+              'Total Gastos Hogar',
+              resumen['totalGastosHogar']!,
+              Theme.of(context).textTheme.bodyLarge!.color!,
+              '',
+              true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Card _buildCardLiquidacion(Map<String, double> resumen) {
+    final totalIngresos = resumen['totalIngresos']!;
+    final misIngresos = resumen['misIngresos']!;
+    final totalGastos = resumen['totalGastosHogar']!;
+    final misGastos = resumen['misGastosHogar']!;
+
+    String mensaje = 'Ingresa los datos para calcular.';
+    double diferencia = 0;
+
+    if (totalIngresos > 0 && totalGastos > 0) {
+      final miPorcentajeIngreso = misIngresos / totalIngresos;
+      final miAporteIdeal = totalGastos * miPorcentajeIngreso;
+      diferencia = miAporteIdeal - misGastos;
+
+      if (diferencia > 0) {
+        mensaje = 'Debes transferir a tu pareja:';
+      } else if (diferencia < 0) {
+        mensaje = 'Tu pareja debe transferirte:';
+      } else {
+        mensaje = 'Las cuentas están saldadas.';
+      }
+    }
+
+    final claveMes = _getClaveMes();
+    final bool saldado =
+        cajaFinanzasHogar.get(claveMes, defaultValue: {})['saldado'] ?? false;
+
+    return Card(
+      color: saldado ? Colors.green.shade50 : Theme.of(context).cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text(
+              'Liquidación del Mes',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const Divider(height: 20),
+            Text(mensaje, style: Theme.of(context).textTheme.bodyLarge),
+            const SizedBox(height: 8),
+            Text(
+              formatoMoneda.format(diferencia.abs()),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: diferencia > 0
+                    ? Colors.red.shade700
+                    : Colors.green.shade700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              title: const Text('Marcar como saldado'),
+              value: saldado,
+              onChanged: (diferencia != 0)
+                  ? (value) => _marcarComoSaldado(value)
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilaResumen(
+    String titulo,
+    double monto,
+    Color color, [
+    String? porcentaje,
+    bool esNegrita = false,
+  ]) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          CircleAvatar(backgroundColor: color, radius: 5),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              titulo,
+              style: TextStyle(
+                fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+          if (porcentaje != null)
+            Text(
+              porcentaje,
+              style: TextStyle(
+                fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          const SizedBox(width: 10),
+          Text(
+            formatoMoneda.format(monto),
+            style: TextStyle(
+              fontWeight: esNegrita ? FontWeight.bold : FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirTileMovimiento(Map mov) {
+    IconData icono;
+    Color color;
+
+    switch (mov['type']) {
+      case 'Ingreso':
+        icono = Icons.arrow_downward_rounded;
+        color = Colors.green.shade600;
+        break;
+      case 'Gasto':
+        icono = Icons.arrow_upward_rounded;
+        color = TemaApp._colorError;
+        break;
+      default:
+        icono = Icons.receipt_long_outlined;
+        color = Theme.of(context).textTheme.bodySmall!.color!;
+    }
+
+    String titulo = mov['description']?.isNotEmpty == true
+        ? mov['description']
+        : mov['account'];
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withAlpha(26),
+          child: Icon(icono, color: color),
+        ),
+        title: Text(
+          titulo,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          DateFormat('dd MMM, HH:mm', 'es').format(DateTime.parse(mov['date'])),
+        ),
+        trailing: Text(
+          '${mov['type'] == 'Ingreso' ? '+' : '-'}${formatoMoneda.format(mov['amount'])}',
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+//==============================================================================
+// 🔄 AUTOMATIC DEBITS SCREEN
+//==============================================================================
+
+class PantallaDebitos extends StatefulWidget {
   const PantallaDebitos({super.key});
 
   @override
-  EstadoPantallaDebitos createState() => EstadoPantallaDebitos(); // Made public by removing underscore
+  EstadoPantallaDebitos createState() => EstadoPantallaDebitos();
 }
 
-class EstadoPantallaDebitos extends State<PantallaDebitos> { // Made public by removing underscore
+class EstadoPantallaDebitos extends State<PantallaDebitos> {
   final cajaDebitos = Hive.box('debitos');
-  final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
+  final cajaBancos = Hive.box('bancos');
 
-  void _mostrarDialogoDebito({int? llave, Map? debito}) { // Renombrado de _showDebitoDialog, key
-    final controladorNombre = TextEditingController(text: debito?['nombre'] ?? ''); // Renombrado de nombreController
-    final controladorMonto = TextEditingController(text: debito?['monto']?.toString() ?? ''); // Renombrado de montoController
-    int diaSeleccionado = debito?['dia'] ?? 1; // Renombrado de selectedDia
-    int? idCuentaSeleccionada = debito?['cuentaId']; // Renombrado de selectedCuentaId
+  void _mostrarDialogoDebito({int? llave, Map? debito}) {
+    final controladorNombre = TextEditingController(
+      text: debito?['nombre'] ?? '',
+    );
+    final controladorMonto = TextEditingController(
+      text: debito?['monto']?.toString() ?? '',
+    );
+    int diaSeleccionado = debito?['dia'] ?? 1;
+    int? idCuentaSeleccionada = debito?['cuentaId'];
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(llave == null ? 'Nuevo Débito Automático' : 'Editar Débito'), // Renombrado de key
+        title: Text(
+          llave == null ? 'Nuevo Débito Automático' : 'Editar Débito',
+        ),
         content: StatefulBuilder(
-          builder: (BuildContext context, StateSetter establecerEstado) { // Renombrado de setState
+          builder: (BuildContext context, StateSetter establecerEstado) {
+            // --- INICIO: CAMBIO APLICADO (SECCIÓN 3) ---
+            final orderedAccounts = getOrderedAccounts();
+            // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
+
             return SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.max,
                 children: [
-                  TextField(controller: controladorNombre, decoration: const InputDecoration(labelText: 'Nombre (Ej: Netflix, Arriendo)')), // Renombrado de nombreController
+                  TextField(
+                    controller: controladorNombre,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre (Ej: Netflix, Arriendo)',
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  TextField(controller: controladorMonto, decoration: const InputDecoration(labelText: 'Monto', prefixText: '\$ '), keyboardType: TextInputType.number), // Renombrado de montoController
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<int>(
-                    value: diaSeleccionado, // Renombrado de selectedDia
-                    decoration: const InputDecoration(labelText: 'Día del cobro'),
-                    items: List.generate(28, (i) => i + 1).map((d) => DropdownMenuItem(value: d, child: Text('Día $d de cada mes'))).toList(),
-                    onChanged: (val) => establecerEstado(() => diaSeleccionado = val!), // Renombrado de setState, selectedDia
+                  TextField(
+                    controller: controladorMonto,
+                    decoration: const InputDecoration(
+                      labelText: 'Monto',
+                      prefixText: '\$ ',
+                    ),
+                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    value: idCuentaSeleccionada, // Renombrado de selectedCuentaId
+                    value: diaSeleccionado,
+                    decoration: const InputDecoration(
+                      labelText: 'Día del cobro',
+                    ),
+                    items: List.generate(28, (i) => i + 1)
+                        .map(
+                          (d) => DropdownMenuItem(
+                            value: d,
+                            child: Text('Día $d de cada mes'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (val) =>
+                        establecerEstado(() => diaSeleccionado = val!),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<int>(
+                    value: idCuentaSeleccionada,
                     hint: const Text('Seleccionar cuenta a debitar'),
-                    decoration: const InputDecoration(labelText: 'Cuenta de Origen'),
+                    decoration: const InputDecoration(
+                      labelText: 'Cuenta de Origen',
+                    ),
                     isExpanded: true,
-                    items: cajaBancos.keys.map((key) { // Renombrado de accountsBox
-                      return DropdownMenuItem<int>(value: key, child: Text(cajaBancos.get(key)['name'])); // Renombrado de accountsBox
+                    // --- INICIO: CAMBIO APLICADO (SECCIÓN 3) ---
+                    items: orderedAccounts.map((entry) {
+                      return DropdownMenuItem<int>(
+                        value: entry.key,
+                        child: Text(entry.value['name']),
+                      );
                     }).toList(),
-                    onChanged: (val) => establecerEstado(() => idCuentaSeleccionada = val!), // Renombrado de setState, selectedCuentaId
+                    // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
+                    onChanged: (val) =>
+                        establecerEstado(() => idCuentaSeleccionada = val!),
                   ),
                 ],
               ),
@@ -1936,28 +3342,36 @@ class EstadoPantallaDebitos extends State<PantallaDebitos> { // Made public by r
           },
         ),
         actions: [
-          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(context)),
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
+          ),
           ElevatedButton(
             child: const Text('Guardar'),
             onPressed: () {
-              final nombre = controladorNombre.text.trim(); // Renombrado de nombreController
-              final monto = double.tryParse(controladorMonto.text) ?? 0; // Renombrado de montoController
-              if (nombre.isNotEmpty && monto > 0 && idCuentaSeleccionada != null) { // Renombrado de selectedCuentaId
-                final datos = { // Renombrado de data
-                  'nombre': nombre, 'monto': monto, 'dia': diaSeleccionado, // Renombrado de selectedDia
-                  'cuentaId': idCuentaSeleccionada, 'ultimaEjecucion': debito?['ultimaEjecucion'], // Renombrado de selectedCuentaId
+              final nombre = controladorNombre.text.trim();
+              final monto = double.tryParse(controladorMonto.text) ?? 0;
+              if (nombre.isNotEmpty &&
+                  monto > 0 &&
+                  idCuentaSeleccionada != null) {
+                final datos = {
+                  'nombre': nombre,
+                  'monto': monto,
+                  'dia': diaSeleccionado,
+                  'cuentaId': idCuentaSeleccionada,
+                  'ultimaEjecucion': debito?['ultimaEjecucion'],
                 };
                 datos['proximaFecha'] = debito?['proximaFecha'];
-                if (llave == null) { // Renombrado de key
-                  cajaDebitos.add(datos); // Renombrado de data
+                if (llave == null) {
+                  cajaDebitos.add(datos);
                 } else {
-                  cajaDebitos.put(llave, datos); // Renombrado de key, data
+                  cajaDebitos.put(llave, datos);
                 }
                 Navigator.pop(context);
                 setState(() {});
               }
             },
-          )
+          ),
         ],
       ),
     );
@@ -1968,50 +3382,78 @@ class EstadoPantallaDebitos extends State<PantallaDebitos> { // Made public by r
     return Scaffold(
       appBar: AppBar(title: const Text('Débitos Automáticos')),
       body: ValueListenableBuilder(
-        valueListenable: cajaDebitos.listenable(), // Renombrado de debitosBox
+        valueListenable: cajaDebitos.listenable(),
         builder: (context, Box box, _) {
           final debitos = box.toMap();
           if (debitos.isEmpty) {
-            return const Center(child: Text('No has configurado débitos automáticos.'));
+            return const Center(
+              child: Text('No has configurado débitos automáticos.'),
+            );
           }
           return ListView(
             padding: const EdgeInsets.all(8),
-            children: debitos.entries.map((entrada) { // Renombrado de entry
+            children: debitos.entries.map((entrada) {
               final debito = entrada.value;
-              final cuenta = cajaBancos.get(debito['cuentaId']); // Renombrado de accountsBox
-              final proximaFecha = debito['proximaFecha'] != null
-                  ? DateFormat('dd/MM/yyyy').format(DateTime.parse(debito['proximaFecha']))
-                  : 'Pendiente';
+              final cuenta = cajaBancos.get(debito['cuentaId']);
+              String proximaFecha;
+              if (debito['proximaFecha'] != null) {
+                proximaFecha = DateFormat(
+                  'dd/MM/yyyy',
+                ).format(DateTime.parse(debito['proximaFecha']));
+              } else {
+                proximaFecha = 'Pendiente';
+              }
 
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.event_repeat_outlined)),
-                  title: Text(debito['nombre'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.event_repeat_outlined),
+                  ),
+                  title: Text(
+                    debito['nombre'],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Text(
-                      'Día ${debito['dia']} de cada mes\n'
-                          'Desde: ${cuenta?['name'] ?? 'N/A'}\n'
-                          'Próximo cobro: $proximaFecha'),
+                    'Día ${debito['dia']} de cada mes\n'
+                    'Desde: ${cuenta?['name'] ?? 'N/A'}\n'
+                    'Próximo cobro: $proximaFecha',
+                  ),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('\$${formatoMoneda.format(debito['monto'])}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), // Renombrado de formatCurrency
+                      Text(
+                        formatoMoneda.format(debito['monto']),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       PopupMenuButton<String>(
-                        onSelected: (valor) { // Renombrado de value
+                        onSelected: (valor) {
                           if (valor == 'Editar') {
-                            _mostrarDialogoDebito(llave: entrada.key, debito: debito); // Renombrado de _showDebitoDialog, key
+                            _mostrarDialogoDebito(
+                              llave: entrada.key,
+                              debito: debito,
+                            );
                           } else if (valor == 'Eliminar') {
-                            cajaDebitos.delete(entrada.key); // Renombrado de debitosBox, key
+                            cajaDebitos.delete(entrada.key);
                             setState(() {});
                           }
                         },
                         itemBuilder: (context) => [
-                          const PopupMenuItem(value: 'Editar', child: Text('Editar')),
-                          const PopupMenuItem(value: 'Eliminar', child: Text('Eliminar')),
+                          const PopupMenuItem(
+                            value: 'Editar',
+                            child: Text('Editar'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'Eliminar',
+                            child: Text('Eliminar'),
+                          ),
                         ],
                         icon: const Icon(Icons.more_vert),
-                      )
+                      ),
                     ],
                   ),
                 ),
@@ -2021,7 +3463,7 @@ class EstadoPantallaDebitos extends State<PantallaDebitos> { // Made public by r
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _mostrarDialogoDebito(), // Renombrado de _showDebitoDialog
+        onPressed: () => _mostrarDialogoDebito(),
         label: const Text('Nuevo Débito'),
         icon: const Icon(Icons.add),
       ),
@@ -2030,52 +3472,55 @@ class EstadoPantallaDebitos extends State<PantallaDebitos> { // Made public by r
 }
 
 //==============================================================================
-// 📝 PANTALLA DE NOTAS (NotesScreen)
+// 📝 NOTES SCREEN
 //==============================================================================
 
-class PantallaNotas extends StatefulWidget { // Renombrado de NotesScreen
+class PantallaNotas extends StatefulWidget {
   const PantallaNotas({super.key});
 
   @override
-  EstadoPantallaNotas createState() => EstadoPantallaNotas(); // Renombrado de NotesScreenState
+  EstadoPantallaNotas createState() => EstadoPantallaNotas();
 }
 
-class EstadoPantallaNotas extends State<PantallaNotas> { // Renombrado de NotesScreenState
-  final cajaNotas = Hive.box('notas'); // Renombrado de notesBox
-  final TextEditingController _controlador = TextEditingController(); // Renombrado de _controller
+class EstadoPantallaNotas extends State<PantallaNotas> {
+  final cajaNotas = Hive.box('notas');
+  final TextEditingController _controlador = TextEditingController();
 
-  void _mostrarDialogoNota({int? llave, String? textoExistente}) { // Renombrado de _showNoteDialog, key, existingText
-    _controlador.text = textoExistente ?? ''; // Renombrado de _controller, existingText
+  void _mostrarDialogoNota({int? llave, String? textoExistente}) {
+    _controlador.text = textoExistente ?? '';
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(llave == null ? 'Nueva Nota' : 'Editar Nota'), // Renombrado de key
+        title: Text(llave == null ? 'Nueva Nota' : 'Editar Nota'),
         content: TextField(
-          controller: _controlador, // Renombrado de _controller
+          controller: _controlador,
           autofocus: true,
           maxLines: 8,
           decoration: const InputDecoration(
-              hintText: 'Escribe tus ideas, recordatorios, etc.',
-              border: OutlineInputBorder()
+            hintText: 'Escribe tus ideas, recordatorios, etc.',
+            border: OutlineInputBorder(),
           ),
         ),
         actions: [
-          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(context)),
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
+          ),
           ElevatedButton(
             child: const Text('Guardar'),
             onPressed: () {
-              final texto = _controlador.text.trim(); // Renombrado de text, _controller
+              final texto = _controlador.text.trim();
               if (texto.isNotEmpty) {
-                if (llave == null) { // Renombrado de key
-                  cajaNotas.add(texto); // Renombrado de notesBox, text
+                if (llave == null) {
+                  cajaNotas.add(texto);
                 } else {
-                  cajaNotas.put(llave, texto); // Renombrado de notesBox, key, text
+                  cajaNotas.put(llave, texto);
                 }
               }
               Navigator.pop(context);
               setState(() {});
             },
-          )
+          ),
         ],
       ),
     );
@@ -2086,26 +3531,36 @@ class EstadoPantallaNotas extends State<PantallaNotas> { // Renombrado de NotesS
     return Scaffold(
       appBar: AppBar(title: const Text('Notas Rápidas')),
       body: ValueListenableBuilder(
-        valueListenable: cajaNotas.listenable(), // Renombrado de notesBox
+        valueListenable: cajaNotas.listenable(),
         builder: (context, Box box, _) {
-          final notas = box.toMap().entries.toList(); // Renombrado de notes
+          final notas = box.toMap().entries.toList();
           if (notas.isEmpty) {
             return const Center(child: Text('No hay notas guardadas.'));
           }
           return ListView.builder(
             padding: const EdgeInsets.all(8),
             itemCount: notas.length,
-            itemBuilder: (context, indice) { // Renombrado de index
-              final entrada = notas[indice]; // Renombrado de entry
+            itemBuilder: (context, indice) {
+              final entrada = notas[indice];
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 child: ListTile(
-                  title: Text(entrada.value, maxLines: 5, overflow: TextOverflow.ellipsis), // Renombrado de entry
-                  onTap: () => _mostrarDialogoNota(llave: entrada.key, textoExistente: entrada.value), // Renombrado de _showNoteDialog, key, existingText, entry
+                  title: Text(
+                    entrada.value,
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () => _mostrarDialogoNota(
+                    llave: entrada.key,
+                    textoExistente: entrada.value,
+                  ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: TemaApp._colorError), // Renombrado de AppTheme._colorError
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: TemaApp._colorError,
+                    ),
                     onPressed: () {
-                      cajaNotas.delete(entrada.key); // Renombrado de notesBox, key
+                      cajaNotas.delete(entrada.key);
                     },
                   ),
                 ),
@@ -2117,14 +3572,14 @@ class EstadoPantallaNotas extends State<PantallaNotas> { // Renombrado de NotesS
       floatingActionButton: FloatingActionButton(
         tooltip: 'Nueva Nota',
         child: const Icon(Icons.add),
-        onPressed: () => _mostrarDialogoNota(), // Renombrado de _showNoteDialog
+        onPressed: () => _mostrarDialogoNota(),
       ),
     );
   }
 }
 
 //==============================================================================
-// � PANTALLA DE RECORDATORIOS (RemindersScreen)
+// ⏰ REMINDERS SCREEN
 //==============================================================================
 
 class PantallaRecordatorios extends StatefulWidget {
@@ -2138,45 +3593,48 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
   final cajaRecordatorios = Hive.box('recordatorios');
   final TextEditingController _controladorNombre = TextEditingController();
   final TextEditingController _controladorValor = TextEditingController();
-  final TextEditingController _controladorNotas = TextEditingController(); // Nuevo controlador para notas
+  final TextEditingController _controladorNotas = TextEditingController();
 
-  String _tipoFrecuencia = 'Una vez'; // Valor predeterminado
+  String _tipoFrecuencia = 'Una vez';
   DateTime _fechaSeleccionada = DateTime.now();
-  int? _diaSeleccionado; // Para mensual
-  int? _mesSeleccionado; // Para anual
-
+  int? _diaSeleccionado;
+  int? _mesSeleccionado;
 
   @override
   void dispose() {
     _controladorNombre.dispose();
     _controladorValor.dispose();
-    _controladorNotas.dispose(); // Disponer también del controlador de notas
+    _controladorNotas.dispose();
     super.dispose();
   }
 
   void _mostrarDialogoRecordatorio({int? llave, Map? recordatorioExistente}) {
     _controladorNombre.text = recordatorioExistente?['nombre'] ?? '';
     _controladorValor.text = recordatorioExistente?['valor']?.toString() ?? '';
-    _controladorNotas.text = recordatorioExistente?['notas'] ?? ''; // Cargar notas existentes
+    _controladorNotas.text = recordatorioExistente?['notas'] ?? '';
 
     _tipoFrecuencia = recordatorioExistente?['tipoFrecuencia'] ?? 'Una vez';
     if (recordatorioExistente != null) {
-      if (_tipoFrecuencia == 'Una vez' && recordatorioExistente['fecha'] != null) {
+      if (_tipoFrecuencia == 'Una vez' &&
+          recordatorioExistente['fecha'] != null) {
         _fechaSeleccionada = DateTime.parse(recordatorioExistente['fecha']);
-      } else if (_tipoFrecuencia == 'Mensual' && recordatorioExistente['dia'] != null) {
+      } else if (_tipoFrecuencia == 'Mensual' &&
+          recordatorioExistente['dia'] != null) {
         _diaSeleccionado = recordatorioExistente['dia'] as int;
         _fechaSeleccionada = DateTime(
           DateTime.now().year,
           DateTime.now().month,
-          _diaSeleccionado ?? 1
+          _diaSeleccionado ?? 1,
         );
-      } else if (_tipoFrecuencia == 'Anual' && recordatorioExistente['dia'] != null && recordatorioExistente['mes'] != null) {
+      } else if (_tipoFrecuencia == 'Anual' &&
+          recordatorioExistente['dia'] != null &&
+          recordatorioExistente['mes'] != null) {
         _diaSeleccionado = recordatorioExistente['dia'] as int;
         _mesSeleccionado = recordatorioExistente['mes'] as int;
         _fechaSeleccionada = DateTime(
           DateTime.now().year,
           _mesSeleccionado ?? 1,
-          _diaSeleccionado ?? 1
+          _diaSeleccionado ?? 1,
         );
       } else {
         _fechaSeleccionada = DateTime.now();
@@ -2185,11 +3643,12 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
       _fechaSeleccionada = DateTime.now();
     }
 
-
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(llave == null ? 'Nuevo Recordatorio' : 'Editar Recordatorio'),
+        title: Text(
+          llave == null ? 'Nuevo Recordatorio' : 'Editar Recordatorio',
+        ),
         content: StatefulBuilder(
           builder: (BuildContext context, StateSetter establecerEstadoDialogo) {
             return SingleChildScrollView(
@@ -2198,31 +3657,40 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                 children: [
                   TextField(
                     controller: _controladorNombre,
-                    decoration: const InputDecoration(labelText: 'Nombre del Recordatorio'),
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del Recordatorio',
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _controladorValor,
-                    decoration: const InputDecoration(labelText: 'Valor (opcional)', prefixText: '\$ '),
+                    decoration: const InputDecoration(
+                      labelText: 'Valor (opcional)',
+                      prefixText: '\$ ',
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 16),
-                  // Campo de notas/observaciones
                   TextField(
                     controller: _controladorNotas,
-                    decoration: const InputDecoration(labelText: 'Notas / Observaciones (opcional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Notas / Observaciones (opcional)',
+                    ),
                     maxLines: 3,
                   ),
                   const SizedBox(height: 16),
-                  // Dropdown de frecuencia
                   DropdownButtonFormField<String>(
                     value: _tipoFrecuencia,
                     decoration: const InputDecoration(labelText: 'Frecuencia'),
-                    items: ['Una vez', 'Mensual', 'Anual'].map((tipo) => DropdownMenuItem(value: tipo, child: Text(tipo))).toList(),
+                    items: ['Una vez', 'Mensual', 'Anual']
+                        .map(
+                          (tipo) =>
+                              DropdownMenuItem(value: tipo, child: Text(tipo)),
+                        )
+                        .toList(),
                     onChanged: (val) {
                       establecerEstadoDialogo(() {
                         _tipoFrecuencia = val!;
-                        // Reiniciar valores de fecha/día/mes al cambiar frecuencia
                         _fechaSeleccionada = DateTime.now();
                         _diaSeleccionado = null;
                         _mesSeleccionado = null;
@@ -2230,50 +3698,94 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // Campos de fecha condicionales
                   if (_tipoFrecuencia == 'Una vez')
                     ListTile(
                       title: const Text('Fecha'),
-                      subtitle: Text(DateFormat('EEEE, d MMM y', 'es').format(_fechaSeleccionada)),
+                      subtitle: Text(
+                        DateFormat(
+                          'EEEE, d MMM y',
+                          'es',
+                        ).format(_fechaSeleccionada),
+                      ),
                       trailing: const Icon(Icons.calendar_today_outlined),
                       onTap: () async {
                         final fechaElegida = await showDatePicker(
                           context: context,
                           initialDate: _fechaSeleccionada,
-                          firstDate: DateTime.now().subtract(const Duration(days: 365 * 5)),
-                          lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                          firstDate: DateTime.now().subtract(
+                            const Duration(days: 365 * 5),
+                          ),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365 * 5),
+                          ),
                           locale: const Locale('es'),
                         );
                         if (fechaElegida != null) {
-                          establecerEstadoDialogo(() {
-                            _fechaSeleccionada = fechaElegida;
-                          });
+                          establecerEstadoDialogo(
+                            () => _fechaSeleccionada = fechaElegida,
+                          );
                         }
                       },
                     ),
                   if (_tipoFrecuencia == 'Mensual')
                     DropdownButtonFormField<int>(
                       value: _diaSeleccionado,
-                      decoration: const InputDecoration(labelText: 'Día del mes'),
-                      items: List.generate(28, (i) => i + 1).map((d) => DropdownMenuItem(value: d, child: Text('Día $d'))).toList(),
-                      onChanged: (val) => establecerEstadoDialogo(() => _diaSeleccionado = val!),
-                      validator: (val) => val == null ? 'Selecciona un día' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Día del mes',
+                      ),
+                      items: List.generate(28, (i) => i + 1)
+                          .map(
+                            (d) => DropdownMenuItem(
+                              value: d,
+                              child: Text('Día $d'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) => establecerEstadoDialogo(
+                        () => _diaSeleccionado = val!,
+                      ),
+                      validator: (val) =>
+                          val == null ? 'Selecciona un día' : null,
                     ),
                   if (_tipoFrecuencia == 'Anual') ...[
                     DropdownButtonFormField<int>(
                       value: _mesSeleccionado,
                       decoration: const InputDecoration(labelText: 'Mes'),
-                      items: List.generate(12, (i) => i + 1).map((m) => DropdownMenuItem(value: m, child: Text(DateFormat.MMMM('es').format(DateTime(2023, m))))).toList(),
-                      onChanged: (val) => establecerEstadoDialogo(() => _mesSeleccionado = val!),
-                      validator: (val) => val == null ? 'Selecciona un mes' : null,
+                      items: List.generate(12, (i) => i + 1)
+                          .map(
+                            (m) => DropdownMenuItem(
+                              value: m,
+                              child: Text(
+                                DateFormat.MMMM('es').format(DateTime(2023, m)),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) => establecerEstadoDialogo(
+                        () => _mesSeleccionado = val!,
+                      ),
+                      validator: (val) =>
+                          val == null ? 'Selecciona un mes' : null,
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
                       value: _diaSeleccionado,
-                      decoration: const InputDecoration(labelText: 'Día del mes'),
-                      items: List.generate(31, (i) => i + 1).map((d) => DropdownMenuItem(value: d, child: Text('Día $d'))).toList(),
-                      onChanged: (val) => establecerEstadoDialogo(() => _diaSeleccionado = val!),
-                      validator: (val) => val == null ? 'Selecciona un día' : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Día del mes',
+                      ),
+                      items: List.generate(31, (i) => i + 1)
+                          .map(
+                            (d) => DropdownMenuItem(
+                              value: d,
+                              child: Text('Día $d'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) => establecerEstadoDialogo(
+                        () => _diaSeleccionado = val!,
+                      ),
+                      validator: (val) =>
+                          val == null ? 'Selecciona un día' : null,
                     ),
                   ],
                 ],
@@ -2282,7 +3794,10 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
           },
         ),
         actions: [
-          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(context)),
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
+          ),
           ElevatedButton(
             child: const Text('Guardar'),
             onPressed: () {
@@ -2294,7 +3809,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                 final datos = {
                   'nombre': nombre,
                   'valor': valor,
-                  'notas': notas, // Guardar notas
+                  'notas': notas,
                   'tipoFrecuencia': _tipoFrecuencia,
                 };
 
@@ -2303,7 +3818,11 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                 } else if (_tipoFrecuencia == 'Mensual') {
                   if (_diaSeleccionado == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Por favor, selecciona un día para el recordatorio mensual.')),
+                      const SnackBar(
+                        content: Text(
+                          'Por favor, selecciona un día para el recordatorio mensual.',
+                        ),
+                      ),
                     );
                     return;
                   }
@@ -2311,7 +3830,11 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                 } else if (_tipoFrecuencia == 'Anual') {
                   if (_diaSeleccionado == null || _mesSeleccionado == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Por favor, selecciona un día y un mes para el recordatorio anual.')),
+                      const SnackBar(
+                        content: Text(
+                          'Por favor, selecciona un día y un mes para el recordatorio anual.',
+                        ),
+                      ),
                     );
                     return;
                   }
@@ -2325,10 +3848,10 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                   cajaRecordatorios.put(llave, datos);
                 }
                 Navigator.pop(context);
-                setState(() {}); // Actualiza la lista en la pantalla
+                setState(() {});
               }
             },
-          )
+          ),
         ],
       ),
     );
@@ -2341,7 +3864,10 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
         title: const Text('¿Eliminar recordatorio?'),
         content: const Text('Esta acción no se puede deshacer.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: TemaApp._colorError),
             onPressed: () => Navigator.pop(context, true),
@@ -2363,18 +3889,27 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
       body: ValueListenableBuilder(
         valueListenable: cajaRecordatorios.listenable(),
         builder: (context, Box box, _) {
-          final recordatoriosConFechaProxima = box.toMap().entries.map((entrada) {
-            final recordatorio = entrada.value;
-            final proximaFecha = _calcularProximaFechaRecordatorio(recordatorio);
-            return MapEntry(entrada.key, {'data': recordatorio, 'proximaFecha': proximaFecha});
-          }).where((entrada) {
-            // Filtrar recordatorios que tienen una próxima fecha válida
-            return entrada.value['proximaFecha'] != null;
-          }).toList();
+          final recordatoriosConFechaProxima = box
+              .toMap()
+              .entries
+              .map((entrada) {
+                final recordatorio = entrada.value;
+                final proximaFecha = _calcularProximaFechaRecordatorio(
+                  recordatorio,
+                );
+                return MapEntry(entrada.key, {
+                  'data': recordatorio,
+                  'proximaFecha': proximaFecha,
+                });
+              })
+              .where((entrada) => entrada.value['proximaFecha'] != null)
+              .toList();
 
-          // Ordenar por la próxima fecha de ocurrencia
-          recordatoriosConFechaProxima.sort((a, b) =>
-              (a.value['proximaFecha'] as DateTime).compareTo(b.value['proximaFecha'] as DateTime));
+          recordatoriosConFechaProxima.sort(
+            (a, b) => (a.value['proximaFecha'] as DateTime).compareTo(
+              b.value['proximaFecha'] as DateTime,
+            ),
+          );
 
           if (recordatoriosConFechaProxima.isEmpty) {
             return const Center(child: Text('No hay recordatorios guardados.'));
@@ -2387,21 +3922,31 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
               final entrada = recordatoriosConFechaProxima[indice];
               final recordatorio = entrada.value['data'];
               final proximaFecha = entrada.value['proximaFecha'] as DateTime;
-              final diasRestantes = proximaFecha.difference(DateTime.now()).inDays;
-              final tieneValor = recordatorio['valor'] != null && recordatorio['valor'] > 0;
-              final tieneNotas = recordatorio['notas'] != null && recordatorio['notas'].isNotEmpty;
+              final diasRestantes = proximaFecha
+                  .difference(DateTime.now())
+                  .inDays;
+              final tieneValor =
+                  recordatorio['valor'] != null && recordatorio['valor'] > 0;
+              final tieneNotas =
+                  recordatorio['notas'] != null &&
+                  recordatorio['notas'].isNotEmpty;
 
               Color cardColor;
               Color iconColor;
-              TextStyle textStyle = TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color);
+              TextStyle textStyle = TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              );
               TextDecoration? textDecoration;
 
-              if (diasRestantes < 0) { // Vencido
+              if (diasRestantes < 0) {
                 cardColor = Colors.grey.shade200;
                 iconColor = Colors.grey.shade600;
                 textDecoration = TextDecoration.lineThrough;
-                textStyle = TextStyle(color: Colors.grey.shade600, decoration: textDecoration);
-              } else if (diasRestantes <= 7) { // 7 días o menos
+                textStyle = TextStyle(
+                  color: Colors.grey.shade600,
+                  decoration: textDecoration,
+                );
+              } else if (diasRestantes <= 7) {
                 cardColor = Color.fromRGBO(
                   (TemaApp._colorAdvertencia.r * 255.0).round() & 0xff,
                   (TemaApp._colorAdvertencia.g * 255.0).round() & 0xff,
@@ -2409,13 +3954,13 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                   0.1,
                 );
                 iconColor = TemaApp._colorAdvertencia;
-              } else if (diasRestantes <= 15) { // 8 a 15 días
+              } else if (diasRestantes <= 15) {
                 cardColor = Colors.amber.shade100;
                 iconColor = Colors.amber.shade700;
-              } else if (diasRestantes <= 30) { // 16 a 30 días
+              } else if (diasRestantes <= 30) {
                 cardColor = Colors.lightBlue.shade100;
                 iconColor = Colors.lightBlue.shade700;
-              } else { // Más de 30 días
+              } else {
                 cardColor = Theme.of(context).cardColor;
                 iconColor = Theme.of(context).colorScheme.primary;
               }
@@ -2433,15 +3978,17 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${DateFormat('dd MMM y', 'es').format(proximaFecha)} '
-                            '${tieneValor ? ' - \$${formatoMoneda.format(recordatorio['valor'])}' : ''}',
+                        '${DateFormat('dd MMM y', 'es').format(proximaFecha)} ${tieneValor ? ' - ${formatoMoneda.format(recordatorio['valor'])}' : ''}',
                         style: textStyle,
                       ),
                       Text(
                         diasRestantes >= 0
                             ? 'Faltan $diasRestantes días'
                             : 'Vencido hace ${diasRestantes.abs()} días',
-                        style: textStyle.copyWith(fontSize: 12, fontStyle: FontStyle.italic),
+                        style: textStyle.copyWith(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                       if (tieneNotas)
                         Text(
@@ -2457,10 +4004,16 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.edit_outlined),
-                        onPressed: () => _mostrarDialogoRecordatorio(llave: entrada.key, recordatorioExistente: recordatorio),
+                        onPressed: () => _mostrarDialogoRecordatorio(
+                          llave: entrada.key,
+                          recordatorioExistente: recordatorio,
+                        ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: TemaApp._colorError),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: TemaApp._colorError,
+                        ),
                         onPressed: () => _eliminarRecordatorio(entrada.key),
                       ),
                     ],
@@ -2481,157 +4034,455 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
 }
 
 //==============================================================================
-// 📊 PANTALLA DE PRESUPUESTO Y METAS (BudgetScreen)
+// 📊 BUDGET AND GOALS SCREEN
 //==============================================================================
-class PantallaPresupuesto extends StatefulWidget { // Renombrado de BudgetScreen
+class PantallaPresupuesto extends StatefulWidget {
   const PantallaPresupuesto({super.key});
 
   @override
-  EstadoPantallaPresupuesto createState() => EstadoPantallaPresupuesto(); // Renombrado de BudgetScreenState
+  EstadoPantallaPresupuesto createState() => EstadoPantallaPresupuesto();
 }
 
-class EstadoPantallaPresupuesto extends State<PantallaPresupuesto> { // Renombrado de BudgetScreenState
-  final Box cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
-  final Box cajaMetas = Hive.box('metas'); // Renombrado de goalsBox
+// --- INICIO: SECCIÓN ACTUALIZADA (SECCIÓN 5) ---
+// Se añade 'SingleTickerProviderStateMixin' para el TabController.
+// Added 'SingleTickerProviderStateMixin' for the TabController.
+class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
-  final controladorIngreso = TextEditingController(); // Renombrado de ingresoController
-  final controladorGasto = TextEditingController(); // Renombrado de gastoController
-  final controladorAhorro = TextEditingController(); // Renombrado de ahorroController
-  final controladorInversion = TextEditingController(); // Renombrado de inversionController
-  final controladorMeta = TextEditingController(); // Renombrado de metaController
-  final controladorPrecio = TextEditingController(); // Renombrado de precioController
-  final controladorMeses = TextEditingController(); // Renombrado de mesesController
+  final Box cajaAjustes = Hive.box('ajustes');
+  final Box cajaMetas = Hive.box('metas');
+  final Box cajaMetasHogar = Hive.box('metasHogar');
 
-  double ingresoPronosticado = 0;
-  double porcentajeGasto = 0, porcentajeAhorro = 0, porcentajeInversion = 0;
-  String categoriaSeleccionada = 'Gasto';
+  // Controladores para presupuesto personal
+  final controllerIngresoPersonal = TextEditingController();
+  final controllerGastoPersonal = TextEditingController();
+  final controllerAhorroPersonal = TextEditingController();
+  final controllerInversionPersonal = TextEditingController();
+  final controllerMetaPersonal = TextEditingController();
+  final controllerPrecioPersonal = TextEditingController();
+  final controllerMesesPersonal = TextEditingController();
+
+  // Controladores para presupuesto del hogar
+  final controllerIngresoPareja = TextEditingController();
+  final controllerGastoHogar = TextEditingController();
+  final controllerAhorroHogar = TextEditingController();
+  final controllerInversionHogar = TextEditingController();
+  final controllerMetaHogar = TextEditingController();
+  final controllerPrecioHogar = TextEditingController();
+  final controllerMesesHogar = TextEditingController();
+
+  String categoriaSeleccionadaPersonal = 'Gasto';
+  String categoriaSeleccionadaHogar = 'Gasto';
 
   @override
   void initState() {
     super.initState();
-    _cargarAjustes(); // Renombrado de _loadSettings
+    _tabController = TabController(length: 2, vsync: this);
+    _cargarAjustes();
   }
 
-  void _cargarAjustes() { // Renombrado de _loadSettings
-    ingresoPronosticado = cajaAjustes.get('ingreso', defaultValue: 0.0); // Renombrado de settingsBox
-    porcentajeGasto = cajaAjustes.get('gasto', defaultValue: 50.0); // Renombrado de settingsBox
-    porcentajeAhorro = cajaAjustes.get('ahorro', defaultValue: 25.0); // Renombrado de settingsBox
-    porcentajeInversion = cajaAjustes.get('inversion', defaultValue: 25.0); // Renombrado de settingsBox
-
-    controladorIngreso.text = ingresoPronosticado.toStringAsFixed(0); // Renombrado de ingresoController
-    controladorGasto.text = porcentajeGasto.toStringAsFixed(0); // Renombrado de gastoController
-    controladorAhorro.text = porcentajeAhorro.toStringAsFixed(0); // Renombrado de ahorroController
-    controladorInversion.text = porcentajeInversion.toStringAsFixed(0); // Renombrado de inversionController
+  @override
+  void dispose() {
+    _tabController.dispose();
+    // Dispose all controllers
+    controllerIngresoPersonal.dispose();
+    controllerGastoPersonal.dispose();
+    controllerAhorroPersonal.dispose();
+    controllerInversionPersonal.dispose();
+    controllerMetaPersonal.dispose();
+    controllerPrecioPersonal.dispose();
+    controllerMesesPersonal.dispose();
+    controllerIngresoPareja.dispose();
+    controllerGastoHogar.dispose();
+    controllerAhorroHogar.dispose();
+    controllerInversionHogar.dispose();
+    controllerMetaHogar.dispose();
+    controllerPrecioHogar.dispose();
+    controllerMesesHogar.dispose();
+    super.dispose();
   }
 
-  void _guardarAjustes() { // Renombrado de _saveSettings
-    cajaAjustes.put('ingreso', double.tryParse(controladorIngreso.text) ?? 0.0); // Renombrado de settingsBox, ingresoController
-    cajaAjustes.put('gasto', double.tryParse(controladorGasto.text) ?? 0.0); // Renombrado de settingsBox, gastoController
-    cajaAjustes.put('ahorro', double.tryParse(controladorAhorro.text) ?? 0.0); // Renombrado de settingsBox, ahorroController
-    cajaAjustes.put('inversion', double.tryParse(controladorInversion.text) ?? 0.0); // Renombrado de settingsBox, inversionController
-    setState(() => _cargarAjustes()); // Renombrado de _loadSettings
+  void _cargarAjustes() {
+    // Cargar datos personales
+    controllerIngresoPersonal.text = cajaAjustes
+        .get('ingresoPersonal', defaultValue: 0.0)
+        .toStringAsFixed(0);
+    controllerGastoPersonal.text = cajaAjustes
+        .get('gastoPersonal', defaultValue: 50.0)
+        .toStringAsFixed(0);
+    controllerAhorroPersonal.text = cajaAjustes
+        .get('ahorroPersonal', defaultValue: 25.0)
+        .toStringAsFixed(0);
+    controllerInversionPersonal.text = cajaAjustes
+        .get('inversionPersonal', defaultValue: 25.0)
+        .toStringAsFixed(0);
+
+    // Cargar datos del hogar
+    controllerIngresoPareja.text = cajaAjustes
+        .get('ingresoPareja', defaultValue: 0.0)
+        .toStringAsFixed(0);
+    controllerGastoHogar.text = cajaAjustes
+        .get('gastoHogar', defaultValue: 70.0)
+        .toStringAsFixed(0);
+    controllerAhorroHogar.text = cajaAjustes
+        .get('ahorroHogar', defaultValue: 20.0)
+        .toStringAsFixed(0);
+    controllerInversionHogar.text = cajaAjustes
+        .get('inversionHogar', defaultValue: 10.0)
+        .toStringAsFixed(0);
+    setState(() {});
   }
 
-  Future<void> _agregarMeta() async { // Renombrado de _addGoal
-    final nombre = controladorMeta.text.trim(); // Renombrado de metaController
-    final precio = double.tryParse(controladorPrecio.text) ?? 0; // Renombrado de precioController
-    final meses = int.tryParse(controladorMeses.text) ?? 1; // Renombrado de mesesController
+  void _guardarAjustes() {
+    // Guardar datos personales
+    cajaAjustes.put(
+      'ingresoPersonal',
+      double.tryParse(controllerIngresoPersonal.text) ?? 0.0,
+    );
+    cajaAjustes.put(
+      'gastoPersonal',
+      double.tryParse(controllerGastoPersonal.text) ?? 0.0,
+    );
+    cajaAjustes.put(
+      'ahorroPersonal',
+      double.tryParse(controllerAhorroPersonal.text) ?? 0.0,
+    );
+    cajaAjustes.put(
+      'inversionPersonal',
+      double.tryParse(controllerInversionPersonal.text) ?? 0.0,
+    );
+
+    // Guardar datos del hogar
+    cajaAjustes.put(
+      'ingresoPareja',
+      double.tryParse(controllerIngresoPareja.text) ?? 0.0,
+    );
+    cajaAjustes.put(
+      'gastoHogar',
+      double.tryParse(controllerGastoHogar.text) ?? 0.0,
+    );
+    cajaAjustes.put(
+      'ahorroHogar',
+      double.tryParse(controllerAhorroHogar.text) ?? 0.0,
+    );
+    cajaAjustes.put(
+      'inversionHogar',
+      double.tryParse(controllerInversionHogar.text) ?? 0.0,
+    );
+    setState(() {});
+  }
+
+  // Lógica para metas personales
+  Future<void> _agregarMetaPersonal() async {
+    final nombre = controllerMetaPersonal.text.trim();
+    final precio = double.tryParse(controllerPrecioPersonal.text) ?? 0;
+    final meses = int.tryParse(controllerMesesPersonal.text) ?? 1;
 
     if (nombre.isNotEmpty && precio > 0 && meses > 0) {
-      final nuevaLlave = await cajaMetas.add({ // Renombrado de goalsBox
-        'nombre': nombre, 'precio': precio, 'meses': meses,
-        'categoria': categoriaSeleccionada,
+      await cajaMetas.add({
+        'nombre': nombre,
+        'precio': precio,
+        'meses': meses,
+        'categoria': categoriaSeleccionadaPersonal,
       });
-      final ordenActual = List<int>.from(cajaAjustes.get('ordenMetas', defaultValue: [])); // Renombrado de settingsBox
-      ordenActual.add(nuevaLlave);
-      cajaAjustes.put('ordenMetas', ordenActual); // Renombrado de settingsBox
-      controladorMeta.clear(); // Renombrado de metaController
-      controladorPrecio.clear(); // Renombrado de precioController
-      controladorMeses.clear(); // Renombrado de mesesController
+      controllerMetaPersonal.clear();
+      controllerPrecioPersonal.clear();
+      controllerMesesPersonal.clear();
       setState(() {});
     }
   }
 
-  void _editarMeta(int llave, Map meta) { // Renombrado de _editGoal, key
-    final controladorNombre = TextEditingController(text: meta['nombre']); // Renombrado de nombreController
-    final controladorPrecio = TextEditingController(text: meta['precio'].toStringAsFixed(0)); // Renombrado de precioController
-    final controladorMeses = TextEditingController(text: meta['meses'].toString()); // Renombrado de mesesController
-    String nuevaCategoria = meta['categoria']; // Renombrado de nuevaCategoria
+  // Lógica para metas del hogar
+  Future<void> _agregarMetaHogar() async {
+    final nombre = controllerMetaHogar.text.trim();
+    final precio = double.tryParse(controllerPrecioHogar.text) ?? 0;
+    final meses = int.tryParse(controllerMesesHogar.text) ?? 1;
 
-    showDialog(context: context, builder: (_) => StatefulBuilder(
-      builder: (context, establecerEstadoDialogo) => AlertDialog( // Renombrado de setDialogState
-        title: const Text('Editar Meta'),
-        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: controladorNombre, decoration: const InputDecoration(labelText: 'Nombre')), // Renombrado de nombreController
-          const SizedBox(height: 16),
-          TextField(controller: controladorPrecio, decoration: const InputDecoration(labelText: 'Valor total'), keyboardType: TextInputType.number), // Renombrado de precioController
-          const SizedBox(height: 16),
-          TextField(controller: controladorMeses, decoration: const InputDecoration(labelText: 'Meses'), keyboardType: TextInputType.number), // Renombrado de mesesController
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: nuevaCategoria, decoration: const InputDecoration(labelText: 'Categoría'), // Renombrado de nuevaCategoria
-            items: ['Gasto', 'Ahorro', 'Inversion'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-            onChanged: (val) => establecerEstadoDialogo(() => nuevaCategoria = val!), // Renombrado de setDialogState, nuevaCategoria
+    if (nombre.isNotEmpty && precio > 0 && meses > 0) {
+      await cajaMetasHogar.add({
+        'nombre': nombre,
+        'precio': precio,
+        'meses': meses,
+        'categoria': categoriaSeleccionadaHogar,
+      });
+      controllerMetaHogar.clear();
+      controllerPrecioHogar.clear();
+      controllerMesesHogar.clear();
+      setState(() {});
+    }
+  }
+
+  // Se reutiliza para editar metas personales y del hogar.
+  // Reused for editing personal and home goals.
+  void _editarMeta(int llave, Map meta, bool esMetaHogar) {
+    final box = esMetaHogar ? cajaMetasHogar : cajaMetas;
+    final controllerNombre = TextEditingController(text: meta['nombre']);
+    final controllerPrecio = TextEditingController(
+      text: meta['precio'].toStringAsFixed(0),
+    );
+    final controllerMeses = TextEditingController(
+      text: meta['meses'].toString(),
+    );
+    String nuevaCategoria = meta['categoria'];
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Editar Meta'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controllerNombre,
+                  decoration: const InputDecoration(labelText: 'Nombre'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controllerPrecio,
+                  decoration: const InputDecoration(labelText: 'Valor total'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controllerMeses,
+                  decoration: const InputDecoration(labelText: 'Meses'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: nuevaCategoria,
+                  decoration: const InputDecoration(labelText: 'Categoría'),
+                  items: ['Gasto', 'Ahorro', 'Inversion']
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (val) =>
+                      setDialogState(() => nuevaCategoria = val!),
+                ),
+              ],
+            ),
           ),
-        ])),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () {
-              cajaMetas.delete(llave); // Renombrado de goalsBox, key
-              final orden = List<int>.from(cajaAjustes.get('ordenMetas', defaultValue: [])); // Renombrado de settingsBox
-              orden.remove(llave); // Renombrado de key
-              cajaAjustes.put('ordenMetas', orden); // Renombrado de settingsBox
-              Navigator.pop(context);
-              setState(() {});
-            },
-            child: const Text('Eliminar', style: TextStyle(color: TemaApp._colorError)), // Renombrado de AppTheme._colorError
-          ),
-          ElevatedButton(
-            child: const Text('Guardar'),
-            onPressed: () {
-              cajaMetas.put(llave, { // Renombrado de goalsBox, key
-                'nombre': controladorNombre.text.trim(), // Renombrado de nombreController
-                'precio': double.tryParse(controladorPrecio.text) ?? meta['precio'], // Renombrado de precioController
-                'meses': int.tryParse(controladorMeses.text) ?? meta['meses'], // Renombrado de mesesController
-                'categoria': nuevaCategoria, // Renombrado de nuevaCategoria
-              });
-              Navigator.pop(context);
-              setState(() {});
-            },
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                box.delete(llave);
+                Navigator.pop(context);
+                setState(() {});
+              },
+              child: const Text(
+                'Eliminar',
+                style: TextStyle(color: TemaApp._colorError),
+              ),
+            ),
+            ElevatedButton(
+              child: const Text('Guardar'),
+              onPressed: () {
+                box.put(llave, {
+                  'nombre': controllerNombre.text.trim(),
+                  'precio':
+                      double.tryParse(controllerPrecio.text) ?? meta['precio'],
+                  'meses': int.tryParse(controllerMeses.text) ?? meta['meses'],
+                  'categoria': nuevaCategoria,
+                });
+                Navigator.pop(context);
+                setState(() {});
+              },
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Presupuesto y Metas')),
-      body: ValueListenableBuilder(
-          valueListenable: cajaMetas.listenable(), // Renombrado de goalsBox
-          builder: (context, Box box, _) {
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _construirTarjetaConfiguracion(), // Renombrado de _buildConfigCard
-                const SizedBox(height: 24),
-                _construirTarjetaPresupuestoCalculado(), // Renombrado de _buildCalculatedBudgetCard
-                const SizedBox(height: 24),
-                _construirTarjetaAgregarMeta(), // Renombrado de _buildAddGoalCard
-                const SizedBox(height: 24),
-                _construirListaMetas(), // Renombrado de _buildGoalsList
-              ],
-            );
-          }),
+      appBar: AppBar(
+        title: const Text('Presupuesto y Metas'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.person_outline), text: "Personal"),
+            Tab(icon: Icon(Icons.home_work_outlined), text: "Hogar"),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [_buildPersonalBudgetView(), _buildHomeBudgetView()],
+      ),
     );
   }
 
-  Widget _construirTarjetaConfiguracion() { // Renombrado de _buildConfigCard
-    double totalAsignado = porcentajeGasto + porcentajeAhorro + porcentajeInversion;
-    Color colorResumen = totalAsignado == 100 ? Colors.green : (totalAsignado < 100 ? TemaApp._colorAdvertencia : TemaApp._colorError); // Renombrado de AppTheme._warningColor, AppTheme._errorColor
+  // --- Vista para Presupuesto del Hogar ---
+  Widget _buildHomeBudgetView() {
+    double ingresoPersonal =
+        double.tryParse(controllerIngresoPersonal.text) ?? 0.0;
+    double ingresoPareja = double.tryParse(controllerIngresoPareja.text) ?? 0.0;
+    double ingresoTotalHogar = ingresoPersonal + ingresoPareja;
+
+    return ValueListenableBuilder(
+      valueListenable: cajaMetasHogar.listenable(),
+      builder: (context, Box box, _) {
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildHomeConfigCard(ingresoTotalHogar),
+            const SizedBox(height: 24),
+            _buildBudgetCard(
+              "Presupuesto Disponible del Hogar",
+              ingresoTotalHogar,
+              double.tryParse(controllerGastoHogar.text) ?? 0.0,
+              double.tryParse(controllerAhorroHogar.text) ?? 0.0,
+              double.tryParse(controllerInversionHogar.text) ?? 0.0,
+              cajaMetasHogar,
+            ),
+            const SizedBox(height: 24),
+            _buildAddGoalCard(true),
+            const SizedBox(height: 24),
+            _buildGoalsList(true),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- Vista para Presupuesto Personal ---
+  Widget _buildPersonalBudgetView() {
+    double ingresoPersonal =
+        double.tryParse(controllerIngresoPersonal.text) ?? 0.0;
+    double ingresoPareja = double.tryParse(controllerIngresoPareja.text) ?? 0.0;
+    double ingresoTotalHogar = ingresoPersonal + ingresoPareja;
+
+    double miPorcentajeAporte = ingresoTotalHogar > 0
+        ? (ingresoPersonal / ingresoTotalHogar)
+        : 0;
+
+    double totalMetasHogar = cajaMetasHogar.values.fold(
+      0.0,
+      (sum, meta) => sum + (meta['precio'] / meta['meses']),
+    );
+    double miAporteHogar = totalMetasHogar * miPorcentajeAporte;
+    double ingresoPersonalRestante = ingresoPersonal - miAporteHogar;
+
+    return ValueListenableBuilder(
+      valueListenable: cajaMetas.listenable(),
+      builder: (context, Box box, _) {
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildPersonalSummaryCard(
+              ingresoPersonal,
+              miAporteHogar,
+              ingresoPersonalRestante,
+            ),
+            const SizedBox(height: 24),
+            _buildPersonalConfigCard(),
+            const SizedBox(height: 24),
+            _buildBudgetCard(
+              "Presupuesto Personal Disponible",
+              ingresoPersonalRestante,
+              double.tryParse(controllerGastoPersonal.text) ?? 0.0,
+              double.tryParse(controllerAhorroPersonal.text) ?? 0.0,
+              double.tryParse(controllerInversionPersonal.text) ?? 0.0,
+              cajaMetas,
+            ),
+            const SizedBox(height: 24),
+            _buildAddGoalCard(false),
+            const SizedBox(height: 24),
+            _buildGoalsList(false),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- Widgets Reutilizables y Específicos ---
+
+  Card _buildPersonalSummaryCard(
+    double ingreso,
+    double aporte,
+    double restante,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Resumen de Aportes al Hogar",
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const Divider(height: 20),
+            _buildSummaryRow("Tu ingreso pronosticado:", ingreso),
+            _buildSummaryRow(
+              "Tu aporte a metas del hogar:",
+              -aporte,
+              color: TemaApp._colorError,
+            ),
+            const Divider(height: 20, thickness: 1),
+            _buildSummaryRow(
+              "Ingreso personal restante:",
+              restante,
+              isBold: true,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Este es el monto que tienes disponible para tu presupuesto y metas personales.",
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Padding _buildSummaryRow(
+    String label,
+    double value, {
+    Color? color,
+    bool isBold = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            formatoMoneda.format(value),
+            style: TextStyle(
+              color: color,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Card _buildHomeConfigCard(double ingresoTotalHogar) {
+    double totalAsignado =
+        (double.tryParse(controllerGastoHogar.text) ?? 0) +
+        (double.tryParse(controllerAhorroHogar.text) ?? 0) +
+        (double.tryParse(controllerInversionHogar.text) ?? 0);
+    Color colorResumen = totalAsignado == 100
+        ? Colors.green
+        : (totalAsignado < 100
+              ? TemaApp._colorAdvertencia
+              : TemaApp._colorError);
 
     return Card(
       child: Padding(
@@ -2639,21 +4490,75 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto> { // Renombra
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Configuración Mensual', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              "Configuración Mensual del Hogar",
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 16),
-            TextField(controller: controladorIngreso, decoration: const InputDecoration(labelText: 'Ingreso Mensual Pronosticado'), keyboardType: TextInputType.number, onEditingComplete: _guardarAjustes), // Renombrado de ingresoController, _saveSettings
+            TextField(
+              controller: controllerIngresoPersonal,
+              decoration: const InputDecoration(
+                labelText: "Tu Ingreso",
+              ),
+              keyboardType: TextInputType.number,
+              onEditingComplete: _guardarAjustes,
+            ),
             const SizedBox(height: 16),
-            Row(children: [
-              Expanded(child: TextField(controller: controladorGasto, decoration: const InputDecoration(labelText: 'Gasto %'), keyboardType: TextInputType.number, onEditingComplete: _guardarAjustes)), // Renombrado de gastoController, _saveSettings
-              const SizedBox(width: 8),
-              Expanded(child: TextField(controller: controladorAhorro, decoration: const InputDecoration(labelText: 'Ahorro %'), keyboardType: TextInputType.number, onEditingComplete: _guardarAjustes)), // Renombrado de ahorroController, _saveSettings
-              const SizedBox(width: 8),
-              Expanded(child: TextField(controller: controladorInversion, decoration: const InputDecoration(labelText: 'Inversión %'), keyboardType: TextInputType.number, onEditingComplete: _guardarAjustes)), // Renombrado de inversionController, _saveSettings
-            ]),
+            TextField(
+              controller: controllerIngresoPareja,
+              decoration: const InputDecoration(
+                labelText: "Ingreso de tu Pareja",
+              ),
+              keyboardType: TextInputType.number,
+              onEditingComplete: _guardarAjustes,
+            ),
+            const SizedBox(height: 8),
+            Chip(
+              label: Text(
+                "Total Ingresos Hogar: ${formatoMoneda.format(ingresoTotalHogar)}",
+              ),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
+            ),
+            const Divider(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controllerGastoHogar,
+                    decoration: const InputDecoration(labelText: "Gasto %"),
+                    keyboardType: TextInputType.number,
+                    onEditingComplete: _guardarAjustes,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: controllerAhorroHogar,
+                    decoration: const InputDecoration(labelText: "Ahorro %"),
+                    keyboardType: TextInputType.number,
+                    onEditingComplete: _guardarAjustes,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: controllerInversionHogar,
+                    decoration: const InputDecoration(labelText: "Inversión %"),
+                    keyboardType: TextInputType.number,
+                    onEditingComplete: _guardarAjustes,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             Chip(
-              label: Text('${totalAsignado.toStringAsFixed(0)}% Asignado', style: const TextStyle(fontWeight: FontWeight.bold)),
-              backgroundColor: colorResumen.withAlpha(51), // ~20% opacity
+              label: Text(
+                '${totalAsignado.toStringAsFixed(0)}% Asignado',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: colorResumen.withAlpha(51),
               side: BorderSide(color: colorResumen),
             ),
           ],
@@ -2662,11 +4567,97 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto> { // Renombra
     );
   }
 
-  Widget _construirTarjetaPresupuestoCalculado() { // Renombrado de _buildCalculatedBudgetCard
-    double montoGasto = ingresoPronosticado * porcentajeGasto / 100;
-    double montoAhorro = ingresoPronosticado * porcentajeAhorro / 100;
-    double montoInversion = ingresoPronosticado * porcentajeInversion / 100;
-    double totalMensual(String tipo) => cajaMetas.values.where((m) => m['categoria'] == tipo).fold(0.0, (s, m) => s + (m['precio'] / m['meses'])); // Renombrado de goalsBox
+
+  Card _buildPersonalConfigCard() {
+    double totalAsignado =
+        (double.tryParse(controllerGastoPersonal.text) ?? 0) +
+        (double.tryParse(controllerAhorroPersonal.text) ?? 0) +
+        (double.tryParse(controllerInversionPersonal.text) ?? 0);
+    Color colorResumen = totalAsignado == 100
+        ? Colors.green
+        : (totalAsignado < 100
+              ? TemaApp._colorAdvertencia
+              : TemaApp._colorError);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              "Configuración Mensual Personal",
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controllerIngresoPersonal,
+              decoration: const InputDecoration(
+                labelText: "Ingreso Mensual Pronosticado",
+              ),
+              keyboardType: TextInputType.number,
+              onEditingComplete: _guardarAjustes,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controllerGastoPersonal,
+                    decoration: const InputDecoration(labelText: "Gasto %"),
+                    keyboardType: TextInputType.number,
+                    onEditingComplete: _guardarAjustes,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: controllerAhorroPersonal,
+                    decoration: const InputDecoration(labelText: "Ahorro %"),
+                    keyboardType: TextInputType.number,
+                    onEditingComplete: _guardarAjustes,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: controllerInversionPersonal,
+                    decoration: const InputDecoration(labelText: "Inversión %"),
+                    keyboardType: TextInputType.number,
+                    onEditingComplete: _guardarAjustes,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Chip(
+              label: Text(
+                '${totalAsignado.toStringAsFixed(0)}% Asignado',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: colorResumen.withAlpha(51),
+              side: BorderSide(color: colorResumen),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Card _buildBudgetCard(
+    String title,
+    double totalIncome,
+    double pGasto,
+    double pAhorro,
+    double pInversion,
+    Box metasBox,
+  ) {
+    double montoGasto = totalIncome * pGasto / 100;
+    double montoAhorro = totalIncome * pAhorro / 100;
+    double montoInversion = totalIncome * pInversion / 100;
+    double totalMensual(String tipo) => metasBox.values
+        .where((m) => m['categoria'] == tipo)
+        .fold(0.0, (s, m) => s + (m['precio'] / m['meses']));
 
     return Card(
       child: Padding(
@@ -2674,30 +4665,50 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto> { // Renombra
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Presupuesto Disponible', style: Theme.of(context).textTheme.titleLarge),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
             const Divider(height: 24),
-            _filaPresupuesto('Gastos', montoGasto, totalMensual('Gasto')), // Renombrado de _budgetRow
-            _filaPresupuesto('Ahorros', montoAhorro, totalMensual('Ahorro')), // Renombrado de _budgetRow
-            _filaPresupuesto('Inversiones', montoInversion, totalMensual('Inversion')), // Renombrado de _budgetRow
+            _filaPresupuesto("Gastos", montoGasto, totalMensual("Gasto")),
+            _filaPresupuesto("Ahorros", montoAhorro, totalMensual("Ahorro")),
+            _filaPresupuesto(
+              "Inversiones",
+              montoInversion,
+              totalMensual("Inversion"),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _filaPresupuesto(String titulo, double presupuestoTotal, double comprometido) { // Renombrado de _budgetRow
+  Widget _filaPresupuesto(
+    String titulo,
+    double presupuestoTotal,
+    double comprometido,
+  ) {
     double disponible = presupuestoTotal - comprometido;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text('\$${formatoMoneda.format(disponible)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), // Renombrado de formatCurrency
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                formatoMoneda.format(disponible),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
-          Text('Total: \$${formatoMoneda.format(presupuestoTotal)} | Comprometido: \$${formatoMoneda.format(comprometido)}', style: Theme.of(context).textTheme.bodySmall), // Renombrado de formatCurrency
+          Text(
+            'Total: ${formatoMoneda.format(presupuestoTotal)} | Comprometido: ${formatoMoneda.format(comprometido)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: 4),
           LinearProgressIndicator(
             value: presupuestoTotal > 0 ? comprometido / presupuestoTotal : 0,
@@ -2708,34 +4719,75 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto> { // Renombra
     );
   }
 
-  Widget _construirTarjetaAgregarMeta() { // Renombrado de _buildAddGoalCard
+  Card _buildAddGoalCard(bool esHogar) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Agregar Meta o Gasto Fijo', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              esHogar
+                  ? 'Agregar Meta o Gasto Fijo del Hogar'
+                  : 'Agregar Meta o Gasto Fijo Personal',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 16),
-            TextField(controller: controladorMeta, decoration: const InputDecoration(labelText: 'Nombre de la meta')), // Renombrado de metaController
+            TextField(
+              controller: esHogar
+                  ? controllerMetaHogar
+                  : controllerMetaPersonal,
+              decoration: const InputDecoration(labelText: 'Nombre de la meta'),
+            ),
             const SizedBox(height: 16),
-            Row(children: [
-              Expanded(child: TextField(controller: controladorPrecio, decoration: const InputDecoration(labelText: 'Valor total', prefixText: '\$'), keyboardType: TextInputType.number)), // Renombrado de precioController
-              const SizedBox(width: 8),
-              Expanded(child: TextField(controller: controladorMeses, decoration: const InputDecoration(labelText: 'Meses'), keyboardType: TextInputType.number)), // Renombrado de mesesController
-            ]),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: esHogar
+                        ? controllerPrecioHogar
+                        : controllerPrecioPersonal,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor total',
+                      prefixText: '\$ ',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: esHogar
+                        ? controllerMesesHogar
+                        : controllerMesesPersonal,
+                    decoration: const InputDecoration(labelText: 'Meses'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: categoriaSeleccionada,
+              value: esHogar
+                  ? categoriaSeleccionadaHogar
+                  : categoriaSeleccionadaPersonal,
               decoration: const InputDecoration(labelText: 'Categoría'),
-              items: ['Gasto', 'Ahorro', 'Inversion'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-              onChanged: (val) => setState(() => categoriaSeleccionada = val!),
+              items: [
+                'Gasto',
+                'Ahorro',
+                'Inversion',
+              ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: (val) => setState(
+                () => esHogar
+                    ? categoriaSeleccionadaHogar = val!
+                    : categoriaSeleccionadaPersonal = val!,
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               icon: const Icon(Icons.add_task_outlined),
               label: const Text('Agregar Meta'),
-              onPressed: _agregarMeta, // Renombrado de _addGoal
+              onPressed: esHogar ? _agregarMetaHogar : _agregarMetaPersonal,
             ),
           ],
         ),
@@ -2743,46 +4795,48 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto> { // Renombra
     );
   }
 
-  Widget _construirListaMetas() { // Renombrado de _buildGoalsList
-    final ajustes = Hive.box('ajustes'); // Renombrado de settings
-    final orden = List<int>.from(ajustes.get('ordenMetas', defaultValue: cajaMetas.keys.cast<int>().toList())); // Renombrado de settings, goalsBox
-    final metasFiltradas = orden.where((k) => cajaMetas.containsKey(k)).toList(); // Renombrado de goalsBox
+  Widget _buildGoalsList(bool esHogar) {
+    final box = esHogar ? cajaMetasHogar : cajaMetas;
+    final metas = box.toMap();
 
-    if (metasFiltradas.isEmpty) return const SizedBox.shrink();
+    if (metas.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Metas Actuales', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          esHogar ? 'Metas del Hogar' : 'Metas Personales',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         const SizedBox(height: 8),
-        ReorderableListView(
+        ListView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          onReorder: (indiceAntiguo, nuevoIndice) { // Renombrado de oldIndex, newIndex
-            if (nuevoIndice > indiceAntiguo) nuevoIndice--; // Renombrado de oldIndex, newIndex
-            final llaveMovida = metasFiltradas.removeAt(indiceAntiguo); // Renombrado de movedKey, oldIndex
-            metasFiltradas.insert(nuevoIndice, llaveMovida); // Renombrado de newIndex, movedKey
-            ajustes.put('ordenMetas', metasFiltradas); // Renombrado de settings
-            setState(() {});
-          },
-          children: metasFiltradas.map((llave) { // Renombrado de key
-            final meta = cajaMetas.get(llave); // Renombrado de goalsBox, key
+          children: metas.entries.map((entry) {
+            final llave = entry.key;
+            final meta = entry.value;
             final mensual = meta['precio'] / meta['meses'];
             String formatoAniosMeses(int meses) {
-              final anios = meses ~/ 12; final resto = meses % 12;
+              final anios = meses ~/ 12;
+              final resto = meses % 12;
               if (anios > 0 && resto > 0) return '$anios a, $resto m';
               if (anios > 0) return '$anios año(s)';
               return '$resto mes(es)';
             }
 
             return Card(
-              key: ValueKey(llave), // Renombrado de key
+              key: ValueKey(llave),
               margin: const EdgeInsets.symmetric(vertical: 5),
               child: ListTile(
                 title: Text('${meta['nombre']} (${meta['categoria']})'),
-                subtitle: Text('Total: \$${formatoMoneda.format(meta['precio'])} en ${formatoAniosMeses(meta['meses'])}'), // Renombrado de formatCurrency
-                trailing: Text('\$${formatoMoneda.format(mensual)}/mes', style: const TextStyle(fontWeight: FontWeight.bold)), // Renombrado de formatCurrency
-                onTap: () => _editarMeta(llave, meta), // Renombrado de _editGoal, key
+                subtitle: Text(
+                  'Total: ${formatoMoneda.format(meta['precio'])} en ${formatoAniosMeses(meta['meses'])}',
+                ),
+                trailing: Text(
+                  '${formatoMoneda.format(mensual)}/mes',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onTap: () => _editarMeta(llave, meta, esHogar),
               ),
             );
           }).toList(),
@@ -2791,11 +4845,12 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto> { // Renombra
     );
   }
 }
+// --- FIN: SECCIÓN ACTUALIZADA (SECCIÓN 5) ---
 
 //==============================================================================
-// 🛂 PANTALLAS DE CONTROL UVT / DIAN
+// 🛂 UVT / DIAN CONTROL SCREENS
 //==============================================================================
-class PantallaControlUVT extends StatefulWidget { // Renombrado de ControlUVTScreen
+class PantallaControlUVT extends StatefulWidget {
   const PantallaControlUVT({super.key});
 
   @override
@@ -2803,24 +4858,26 @@ class PantallaControlUVT extends StatefulWidget { // Renombrado de ControlUVTScr
 }
 
 class EstadoPantallaControlUVT extends State<PantallaControlUVT> {
-  final cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
-  final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
+  final cajaAjustes = Hive.box('ajustes');
+  final cajaBancos = Hive.box('bancos');
   late Set<int> cuentasSeleccionadas;
 
   @override
   void initState() {
     super.initState();
-    final seleccionadas = cajaAjustes.get('cuentasUVT', defaultValue: <int>[]); // Renombrado de settingsBox
+    final seleccionadas = cajaAjustes.get('cuentasUVT', defaultValue: <int>[]);
     cuentasSeleccionadas = Set<int>.from(seleccionadas);
   }
 
   void guardarSeleccion() {
-    cajaAjustes.put('cuentasUVT', cuentasSeleccionadas.toList()); // Renombrado de settingsBox
+    cajaAjustes.put('cuentasUVT', cuentasSeleccionadas.toList());
   }
 
   @override
   Widget build(BuildContext context) {
-    final cuentas = cajaBancos.toMap().cast<int, dynamic>(); // Renombrado de accountsBox
+    // --- INICIO: CAMBIO APLICADO (SECCIÓN 3) ---
+    final orderedAccounts = getOrderedAccounts();
+    // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
     return Scaffold(
       appBar: AppBar(title: const Text('Control UVT / DIAN')),
       body: Column(
@@ -2828,28 +4885,37 @@ class EstadoPantallaControlUVT extends State<PantallaControlUVT> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text('Selecciona las cuentas a incluir en el cálculo de topes. Las cuentas con "bolsillo" en el nombre se excluyen por defecto.', style: Theme.of(context).textTheme.bodyLarge),
+            child: Text(
+              'Selecciona las cuentas a incluir en el cálculo de topes. Las cuentas con "bolsillo" en el nombre se excluyen por defecto.',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
           ),
           Expanded(
             child: ListView(
-              children: cuentas.entries.map((entrada) { // Renombrado de entry
+              // --- INICIO: CAMBIO APLICADO (SECCIÓN 3) ---
+              children: orderedAccounts.map((entrada) {
                 final id = entrada.key;
                 final nombre = entrada.value['name'];
+                // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
                 final esBolsillo = nombre.toLowerCase().contains('bolsillo');
                 return CheckboxListTile(
                   title: Text(nombre),
-                  subtitle: esBolsillo ? const Text('(Excluida automáticamente)') : null,
+                  subtitle: esBolsillo
+                      ? const Text('(Excluida automáticamente)')
+                      : null,
                   value: esBolsillo ? false : cuentasSeleccionadas.contains(id),
-                  onChanged: esBolsillo ? null : (val) {
-                    setState(() {
-                      if (val == true) {
-                        cuentasSeleccionadas.add(id);
-                      } else {
-                        cuentasSeleccionadas.remove(id);
-                      }
-                      guardarSeleccion();
-                    });
-                  },
+                  onChanged: esBolsillo
+                      ? null
+                      : (val) {
+                          setState(() {
+                            if (val == true) {
+                              cuentasSeleccionadas.add(id);
+                            } else {
+                              cuentasSeleccionadas.remove(id);
+                            }
+                            guardarSeleccion();
+                          });
+                        },
                 );
               }).toList(),
             ),
@@ -2860,37 +4926,43 @@ class EstadoPantallaControlUVT extends State<PantallaControlUVT> {
               icon: const Icon(Icons.arrow_forward_ios_rounded),
               label: const Text('Ver Resumen de Topes'),
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PantallaResumenUVT())); // Renombrado de UVTResumenScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PantallaResumenUVT()),
+                );
               },
             ),
-          )
+          ),
         ],
       ),
     );
   }
 }
 
-class PantallaResumenUVT extends StatefulWidget { // Renombrado de UVTResumenScreen
+class PantallaResumenUVT extends StatefulWidget {
   const PantallaResumenUVT({super.key});
   @override
-  EstadoPantallaResumenUVT createState() => EstadoPantallaResumenUVT(); // Renombrado de UVTResumenScreenState
+  EstadoPantallaResumenUVT createState() => EstadoPantallaResumenUVT();
 }
 
-class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado de UVTResumenScreenState
-  // Función auxiliar para manejar la opacidad de los colores
-  // Método auxiliar para manejar la opacidad de los colores
-  // Nota: withOpacity() está marcado como obsoleto en algunas versiones de Flutter,
-  // pero es el método estándar recomendado en versiones recientes
-  Color conAlpha(Color color, double opacidad) { // Renombrado de withAlpha, opacity
+class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> {
+  Color conAlpha(Color color, double opacidad) {
     return color.withAlpha((opacidad * 255).round());
   }
-  final cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
-  final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
-  final cajaMovimientos = Hive.box('movimientos'); // Renombrado de txBox
 
-  final Map<String, int> topesUVT = {'ingresos': 1400, 'patrimonio': 4500, 'movimientos': 1400, 'consumos': 1400, 'compras': 1400};
-  final controladorValorUVT = TextEditingController(); // Renombrado de valorUVTController
-  Map<String, TextEditingController> controladoresIniciales = {}; // Renombrado de inicialControllers
+  final cajaAjustes = Hive.box('ajustes');
+  final cajaBancos = Hive.box('bancos');
+  final cajaMovimientos = Hive.box('movimientos');
+
+  final Map<String, int> topesUVT = {
+    'ingresos': 1400,
+    'patrimonio': 4500,
+    'movimientos': 1400,
+    'consumos': 1400,
+    'compras': 1400,
+  };
+  final controladorValorUVT = TextEditingController();
+  Map<String, TextEditingController> controladoresIniciales = {};
   late int anioSeleccionado;
   late NumberFormat formatoPesos;
 
@@ -2899,70 +4971,97 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
     super.initState();
     anioSeleccionado = DateTime.now().year;
     formatoPesos = NumberFormat.decimalPattern('es_CO');
-    controladorValorUVT.text = cajaAjustes.get('uvtValor', defaultValue: 47065).toString(); // Renombrado de valorUVTController, settingsBox
-    final valoresIniciales = Map<String, double>.from(cajaAjustes.get('uvtValoresIniciales', defaultValue: {})); // Renombrado de settingsBox
+    controladorValorUVT.text = cajaAjustes
+        .get('uvtValor', defaultValue: 47065)
+        .toString();
+    final valoresIniciales = Map<String, double>.from(
+      cajaAjustes.get('uvtValoresIniciales', defaultValue: {}),
+    );
     for (var clave in topesUVT.keys) {
-      controladoresIniciales[clave] = TextEditingController(text: (valoresIniciales[clave] ?? 0).toStringAsFixed(0)); // Renombrado de inicialControllers
+      controladoresIniciales[clave] = TextEditingController(
+        text: (valoresIniciales[clave] ?? 0).toStringAsFixed(0),
+      );
     }
   }
 
-  double get valorUVT => double.tryParse(controladorValorUVT.text) ?? 47065; // Renombrado de valorUVTController
+  double get valorUVT => double.tryParse(controladorValorUVT.text) ?? 47065;
 
   void guardarValores() {
-    final mapa = {for (var c in controladoresIniciales.keys) c: double.tryParse(controladoresIniciales[c]!.text) ?? 0}; // Renombrado de inicialControllers
-    cajaAjustes.put('uvtValoresIniciales', mapa); // Renombrado de settingsBox
-    cajaAjustes.put('uvtValor', valorUVT); // Renombrado de settingsBox
+    final mapa = {
+      for (var c in controladoresIniciales.keys)
+        c: double.tryParse(controladoresIniciales[c]!.text) ?? 0,
+    };
+    cajaAjustes.put('uvtValoresIniciales', mapa);
+    cajaAjustes.put('uvtValor', valorUVT);
     setState(() {});
   }
 
-  // Calcula el monto actual de una categoría
   double calcularMonto(String categoria) {
-    final seleccionadas = Set<int>.from(cajaAjustes.get('cuentasUVT', defaultValue: [])); // Renombrado de settingsBox
+    final seleccionadas = Set<int>.from(
+      cajaAjustes.get('cuentasUVT', defaultValue: []),
+    );
     double total = 0;
-    int? buscar(String? n) => n == null ? null : cajaBancos.keys.cast<int>().firstWhere((k) => cajaBancos.get(k)['name'] == n, orElse: () => -1); // Renombrado de accountsBox
+    int? buscar(String? n) => n == null
+        ? null
+        : cajaBancos.keys.cast<int>().firstWhere(
+            (k) => cajaBancos.get(k)['name'] == n,
+            orElse: () => -1,
+          );
 
     if (categoria == 'patrimonio') {
-      total = seleccionadas.fold(0.0, (sum, key) => sum + (cajaBancos.get(key)?['balance'] ?? 0)); // Renombrado de accountsBox
-      total += List<Map>.from(cajaAjustes.get('bienesUVT', defaultValue: [])).fold(0.0, (s, b) => s + b['valor']); // Renombrado de settingsBox
+      total = seleccionadas.fold(
+        0.0,
+        (sum, key) => sum + (cajaBancos.get(key)?['balance'] ?? 0),
+      );
+      total += List<Map>.from(
+        cajaAjustes.get('bienesUVT', defaultValue: []),
+      ).fold(0.0, (s, b) => s + b['valor']);
     } else {
-      for (var mov in cajaMovimientos.values) { // Renombrado de txBox, tx
+      for (var mov in cajaMovimientos.values) {
         if (DateTime.parse(mov['date']).year == anioSeleccionado) {
           final tipo = mov['type'];
-          if (categoria == 'ingresos' && tipo == 'Ingreso' && seleccionadas.contains(buscar(mov['account']))) {
+          if (categoria == 'ingresos' &&
+              tipo == 'Ingreso' &&
+              seleccionadas.contains(buscar(mov['account']))) {
             total += mov['amount'];
-          } else if ((categoria == 'compras' || categoria == 'consumos') && tipo == 'Gasto' && seleccionadas.contains(buscar(mov['account']))) {
+          } else if ((categoria == 'compras' || categoria == 'consumos') &&
+              tipo == 'Gasto' &&
+              seleccionadas.contains(buscar(mov['account']))) {
             total += mov['amount'];
           } else if (categoria == 'movimientos') {
-            if ((tipo == 'Ingreso' || tipo == 'Gasto') && seleccionadas.contains(buscar(mov['account']))) {
+            if ((tipo == 'Ingreso' || tipo == 'Gasto') &&
+                seleccionadas.contains(buscar(mov['account']))) {
               total += mov['amount'];
-            } else if (tipo == 'Transferencia' && (seleccionadas.contains(buscar(mov['from'])) || seleccionadas.contains(buscar(mov['to'])))) {
+            } else if (tipo == 'Transferencia' &&
+                (seleccionadas.contains(buscar(mov['from'])) ||
+                    seleccionadas.contains(buscar(mov['to'])))) {
               total += mov['amount'] * 2;
             }
           }
         }
       }
     }
-    return total + (double.tryParse(controladoresIniciales[categoria]?.text ?? '0') ?? 0); // Renombrado de inicialControllers
+    return total +
+        (double.tryParse(controladoresIniciales[categoria]?.text ?? '0') ?? 0);
   }
 
-  // Calcula la proyección anual basada en el gasto actual
-  Map<String, dynamic> calcularProyeccionAnual(String categoria, double montoActual, double topeUVT) {
-    final ahora = DateTime.now(); // Renombrado de now
+  Map<String, dynamic> calcularProyeccionAnual(
+    String categoria,
+    double montoActual,
+    double topeUVT,
+  ) {
+    final ahora = DateTime.now();
     final inicioAnio = DateTime(anioSeleccionado, 1, 1);
     final finAnio = DateTime(anioSeleccionado, 12, 31);
 
-    // Días transcurridos y totales del año
     final diasTranscurridos = ahora.difference(inicioAnio).inDays + 1;
     final diasTotales = finAnio.difference(inicioAnio).inDays + 1;
 
-    // Proyección lineal basada en el gasto actual
     final factorProyeccion = diasTotales / diasTranscurridos;
     final proyeccionAnual = montoActual * factorProyeccion;
 
-    // Porcentaje del año transcurrido
     final porcentajeTranscurrido = (diasTranscurridos / diasTotales) * 100;
 
-    // Tendencias
     final tendencia = proyeccionAnual / (topeUVT * valorUVT);
     String mensajeTendencia;
     Color colorTendencia;
@@ -2997,75 +5096,108 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _construirTarjetaConfiguracionUVT(), // Renombrado de _buildConfigCard
+          _construirTarjetaConfiguracionUVT(),
           const SizedBox(height: 16),
-          ...topesUVT.entries.map((entrada) => _construirTarjetaCategoria(entrada.key, entrada.value)), // Renombrado de entry, _buildCategoryCard
+          ...topesUVT.entries.map(
+            (e) => _construirTarjetaCategoria(e.key, e.value),
+          ),
         ],
       ),
     );
   }
 
-  Widget _construirTarjetaConfiguracionUVT() { // Renombrado de _buildConfigCard
-    final fechaDeclaracion = cajaAjustes.get('fechaDeclaracionUVT'); // Renombrado de fechaDec, settingsBox
-    final fechaFormateada = fechaDeclaracion != null ? DateFormat('d MMMM y', 'es').format(DateTime.parse(fechaDeclaracion)) : 'No definida';
+  Widget _construirTarjetaConfiguracionUVT() {
+    final fechaDeclaracion = cajaAjustes.get('fechaDeclaracionUVT');
+    final fechaFormateada = fechaDeclaracion != null
+        ? DateFormat('d MMMM y', 'es').format(DateTime.parse(fechaDeclaracion))
+        : 'No definida';
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(children: [
-          Row(children: [
-            Expanded(child: DropdownButtonFormField<int>(
-              value: anioSeleccionado,
-              decoration: const InputDecoration(labelText: 'Año Fiscal'),
-              onChanged: (nuevo) => setState(() => anioSeleccionado = nuevo!),
-              items: List.generate(5, (i) {
-                final anio = DateTime.now().year - 2 + i;
-                return DropdownMenuItem(value: anio, child: Text(anio.toString()));
-              }),
-            )),
-            const SizedBox(width: 16),
-            Expanded(child: TextField(
-              controller: controladorValorUVT, keyboardType: TextInputType.number, // Renombrado de valorUVTController
-              decoration: const InputDecoration(labelText: 'Valor UVT'),
-              onChanged: (_) => guardarValores(),
-            )),
-          ]),
-          const SizedBox(height: 16),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Fecha límite de declaración'),
-            subtitle: Text(fechaFormateada, style: const TextStyle(fontWeight: FontWeight.bold)),
-            trailing: const Icon(Icons.calendar_month_outlined),
-            onTap: () async {
-              final seleccionada = await showDatePicker( // Renombrado de picked
-                context: context, initialDate: DateTime.now(),
-                firstDate: DateTime(DateTime.now().year - 1), lastDate: DateTime(DateTime.now().year + 2),
-                locale: const Locale('es'),
-              );
-              if (seleccionada != null) {
-                cajaAjustes.put('fechaDeclaracionUVT', seleccionada.toIso8601String()); // Renombrado de settingsBox, picked
-                setState(() {});
-              }
-            },
-          ),
-        ]),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: anioSeleccionado,
+                    decoration: const InputDecoration(labelText: 'Año Fiscal'),
+                    onChanged: (nuevo) =>
+                        setState(() => anioSeleccionado = nuevo!),
+                    items: List.generate(5, (i) {
+                      final anio = DateTime.now().year - 2 + i;
+                      return DropdownMenuItem(
+                        value: anio,
+                        child: Text(anio.toString()),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: controladorValorUVT,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Valor UVT'),
+                    onChanged: (_) => guardarValores(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Fecha límite de declaración'),
+              subtitle: Text(
+                fechaFormateada,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              trailing: const Icon(Icons.calendar_month_outlined),
+              onTap: () async {
+                final seleccionada = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime(DateTime.now().year - 1),
+                  lastDate: DateTime(DateTime.now().year + 2),
+                  locale: const Locale('es'),
+                );
+                if (seleccionada != null) {
+                  cajaAjustes.put(
+                    'fechaDeclaracionUVT',
+                    seleccionada.toIso8601String(),
+                  );
+                  setState(() {});
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _construirTarjetaCategoria(String categoria, int topeUVT) { // Renombrado de _buildCategoryCard
+  Widget _construirTarjetaCategoria(String categoria, int topeUVT) {
     final topePesos = topeUVT * valorUVT;
     final monto = calcularMonto(categoria);
     final porcentaje = monto / topePesos;
-    final color = porcentaje >= 1 ? TemaApp._colorError : (porcentaje >= 0.8 ? TemaApp._colorAdvertencia : Colors.green.shade600); // Renombrado de AppTheme._errorColor, AppTheme._warningColor
+    final color = porcentaje >= 1
+        ? TemaApp._colorError
+        : (porcentaje >= 0.8
+              ? TemaApp._colorAdvertencia
+              : Colors.green.shade600);
 
-    // Calcular proyección anual
-    final proyeccion = calcularProyeccionAnual(categoria, monto, topeUVT.toDouble());
+    final proyeccion = calcularProyeccionAnual(
+      categoria,
+      monto,
+      topeUVT.toDouble(),
+    );
     final proyeccionAnual = proyeccion['proyeccionAnual'] as double;
     final porcentajeProyeccion = proyeccionAnual / topePesos;
     final colorProyeccion = proyeccion['colorTendencia'] as Color;
     final mensajeTendencia = proyeccion['mensajeTendencia'] as String;
-    final porcentajeTranscurrido = proyeccion['porcentajeTranscurrido'] as double;
+    final porcentajeTranscurrido =
+        proyeccion['porcentajeTranscurrido'] as double;
     final diasTranscurridos = proyeccion['diasTranscurridos'] as int;
     final diasTotales = proyeccion['diasTotales'] as int;
 
@@ -3076,7 +5208,6 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Título y estado actual
             Row(
               children: [
                 Expanded(
@@ -3084,16 +5215,19 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
                     categoria.toUpperCase(),
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: color
+                      color: color,
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: conAlpha(color, 0.1), // Renombrado de withAlpha
+                    color: conAlpha(color, 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: conAlpha(color, 0.3)), // Renombrado de withAlpha
+                    border: Border.all(color: conAlpha(color, 0.3)),
                   ),
                   child: Text(
                     '${(porcentaje * 100).toStringAsFixed(1)}%',
@@ -3107,10 +5241,8 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
               ],
             ),
             const SizedBox(height: 4),
-            Text('Límite: $topeUVT UVT (\$${formatoPesos.format(topePesos)})'),
+            Text('Límite: $topeUVT UVT (${formatoMoneda.format(topePesos)})'),
             const SizedBox(height: 8),
-
-            // Barra de progreso actual
             LinearProgressIndicator(
               value: porcentaje.clamp(0.0, 1.0),
               color: color,
@@ -3119,39 +5251,54 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
               minHeight: 8,
             ),
             const SizedBox(height: 12),
-
-            // Resumen actual
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Actual:', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                    Text('\$${formatoPesos.format(monto)}',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
+                    Text(
+                      'Actual:',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                    ),
+                    Text(
+                      formatoMoneda.format(monto),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: color,
+                      ),
+                    ),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('Días: $diasTranscurridos/$diasTotales',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                    Text('${porcentajeTranscurrido.toStringAsFixed(1)}% del año',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                    Text(
+                      'Días: $diasTranscurridos/$diasTotales',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                    ),
+                    Text(
+                      '${porcentajeTranscurrido.toStringAsFixed(1)}% del año',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                    ),
                   ],
                 ),
               ],
             ),
-
-            // Sección de proyección
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: conAlpha(colorProyeccion, 0.05), // Renombrado de withAlpha
+                color: conAlpha(colorProyeccion, 0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: conAlpha(colorProyeccion, 0.2)), // Renombrado de withAlpha
+                border: Border.all(color: conAlpha(colorProyeccion, 0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3176,7 +5323,7 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
                     children: [
                       Expanded(
                         child: Text(
-                          '\$${formatoPesos.format(proyeccionAnual)}',
+                          formatoMoneda.format(proyeccionAnual),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -3185,9 +5332,12 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                        color: conAlpha(colorProyeccion, 0.1), // Renombrado de withAlpha
+                          color: conAlpha(colorProyeccion, 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -3219,11 +5369,9 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
                 ],
               ),
             ),
-
-            // Campo para valor manual
             const SizedBox(height: 16),
             TextField(
-              controller: controladoresIniciales[categoria], // Renombrado de inicialControllers
+              controller: controladoresIniciales[categoria],
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: 'Sumar valor inicial manual',
@@ -3233,12 +5381,13 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               onChanged: (_) => guardarValores(),
             ),
-
-            // Botón de gestión de bienes (solo para patrimonio)
             if (categoria == 'patrimonio')
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
@@ -3249,15 +5398,22 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
                     label: const Text('Gestionar bienes'),
                     style: TextButton.styleFrom(
                       foregroundColor: Theme.of(context).primaryColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: conAlpha(Theme.of(context).primaryColor, 0.3)), // Renombrado de withAlpha
+                        side: BorderSide(
+                          color: conAlpha(Theme.of(context).primaryColor, 0.3),
+                        ),
                       ),
                     ),
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const PantallaBienesUVT()), // Renombrado de BienesUVTScreen
+                      MaterialPageRoute(
+                        builder: (_) => const PantallaBienesUVT(),
+                      ),
                     ).then((_) => setState(() {})),
                   ),
                 ),
@@ -3269,62 +5425,90 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> { // Renombrado
   }
 }
 
-class PantallaBienesUVT extends StatefulWidget { // Renombrado de BienesUVTScreen
+class PantallaBienesUVT extends StatefulWidget {
   const PantallaBienesUVT({super.key});
 
   @override
-  EstadoPantallaBienesUVT createState() => EstadoPantallaBienesUVT(); // Renombrado de BienesUVTScreenState
+  EstadoPantallaBienesUVT createState() => EstadoPantallaBienesUVT();
 }
 
-class EstadoPantallaBienesUVT extends State<PantallaBienesUVT> { // Renombrado de BienesUVTScreenState
-  final cajaAjustes = Hive.box('ajustes'); // Renombrado de settingsBox
+class EstadoPantallaBienesUVT extends State<PantallaBienesUVT> {
+  final cajaAjustes = Hive.box('ajustes');
 
-  List<Map<String, dynamic>> _obtenerBienes() { // Renombrado de _getBienes
-    return List<Map>.from(cajaAjustes.get('bienesUVT', defaultValue: [])).map((b) => Map<String, dynamic>.from(b)).toList(); // Renombrado de settingsBox
+  List<Map<String, dynamic>> _obtenerBienes() {
+    return List<Map>.from(
+      cajaAjustes.get('bienesUVT', defaultValue: []),
+    ).map((b) => Map<String, dynamic>.from(b)).toList();
   }
 
-  void _guardarBienes(List<Map<String, dynamic>> lista) { // Renombrado de _saveBienes
-    cajaAjustes.put('bienesUVT', lista); // Renombrado de settingsBox
+  void _guardarBienes(List<Map<String, dynamic>> lista) {
+    cajaAjustes.put('bienesUVT', lista);
     setState(() {});
   }
 
-  void _mostrarDialogo({int? indice}) { // Renombrado de _showDialog, index
-    final bienes = _obtenerBienes(); // Renombrado de _getBienes
-    final esNuevo = indice == null; // Renombrado de isNuevo
-    final controladorNombre = TextEditingController(text: esNuevo ? '' : bienes[indice]['nombre']); // Renombrado de nombreCtrl, index
-    final controladorValor = TextEditingController(text: esNuevo ? '' : bienes[indice]['valor'].toString()); // Renombrado de valorCtrl, index
+  void _mostrarDialogo({int? indice}) {
+    final bienes = _obtenerBienes();
+    final esNuevo = indice == null;
+    final controladorNombre = TextEditingController(
+      text: esNuevo ? '' : bienes[indice]['nombre'],
+    );
+    final controladorValor = TextEditingController(
+      text: esNuevo ? '' : bienes[indice]['valor'].toString(),
+    );
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(esNuevo ? 'Nuevo Bien Patrimonial' : 'Editar Bien'), // Renombrado de isNuevo
+        title: Text(esNuevo ? 'Nuevo Bien Patrimonial' : 'Editar Bien'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: controladorNombre, decoration: const InputDecoration(labelText: 'Nombre del bien (Carro, Lote, etc)')), // Renombrado de nombreCtrl
+            TextField(
+              controller: controladorNombre,
+              decoration: const InputDecoration(
+                labelText: 'Nombre del bien (Carro, Lote, etc)',
+              ),
+            ),
             const SizedBox(height: 16),
-            TextField(controller: controladorValor, decoration: const InputDecoration(labelText: 'Valor estimado', prefixText: '\$'), keyboardType: TextInputType.number), // Renombrado de valorCtrl
+            TextField(
+              controller: controladorValor,
+              decoration: const InputDecoration(
+                labelText: 'Valor estimado',
+                prefixText: '\$ ',
+              ),
+              keyboardType: TextInputType.number,
+            ),
           ],
         ),
         actions: [
-          if (!esNuevo) // Renombrado de isNuevo
+          if (!esNuevo)
             TextButton(
-              onPressed: () { bienes.removeAt(indice); _guardarBienes(bienes); Navigator.pop(context); }, // Renombrado de index, _saveBienes
-              child: const Text('Eliminar', style: TextStyle(color: TemaApp._colorError)), // Renombrado de AppTheme._colorError
+              onPressed: () {
+                bienes.removeAt(indice);
+                _guardarBienes(bienes);
+                Navigator.pop(context);
+              },
+              child: const Text(
+                'Eliminar',
+                style: TextStyle(color: TemaApp._colorError),
+              ),
             ),
-          TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(context)),
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(context),
+          ),
           ElevatedButton(
             child: const Text('Guardar'),
             onPressed: () {
-              final nombre = controladorNombre.text.trim(); // Renombrado de nombreCtrl
-              final valor = double.tryParse(controladorValor.text) ?? 0; // Renombrado de valorCtrl
+              final nombre = controladorNombre.text.trim();
+              final valor = double.tryParse(controladorValor.text) ?? 0;
               if (nombre.isNotEmpty && valor > 0) {
-                if (esNuevo) { // Renombrado de isNuevo
+                if (esNuevo) {
                   bienes.add({'nombre': nombre, 'valor': valor});
                 } else {
-                  bienes[indice] = {'nombre': nombre, 'valor': valor}; // Renombrado de index
+                  bienes[indice] = {'nombre': nombre, 'valor': valor};
                 }
-                _guardarBienes(bienes); // Renombrado de _saveBienes
+                _guardarBienes(bienes);
                 Navigator.pop(context);
               }
             },
@@ -3336,29 +5520,34 @@ class EstadoPantallaBienesUVT extends State<PantallaBienesUVT> { // Renombrado d
 
   @override
   Widget build(BuildContext context) {
-    final bienes = _obtenerBienes(); // Renombrado de _getBienes
+    final bienes = _obtenerBienes();
     return Scaffold(
       appBar: AppBar(title: const Text('Bienes Patrimoniales')),
       body: bienes.isEmpty
           ? const Center(child: Text('No has registrado bienes.'))
           : ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: bienes.length,
-        itemBuilder: (_, i) {
-          final bien = bienes[i];
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            child: ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.inventory_2_outlined)),
-              title: Text(bien['nombre']),
-              subtitle: Text('\$${NumberFormat.decimalPattern('es_CO').format(bien['valor'])}'),
-              onTap: () => _mostrarDialogo(indice: i), // Renombrado de _showDialog, index
+              padding: const EdgeInsets.all(8),
+              itemCount: bienes.length,
+              itemBuilder: (_, i) {
+                final bien = bienes[i];
+                return Card(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.inventory_2_outlined),
+                    ),
+                    title: Text(bien['nombre']),
+                    subtitle: Text(formatoMoneda.format(bien['valor'])),
+                    onTap: () => _mostrarDialogo(indice: i),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _mostrarDialogo(), // Renombrado de _showDialog
+        onPressed: () => _mostrarDialogo(),
         label: const Text('Agregar Bien'),
         icon: const Icon(Icons.add),
       ),
@@ -3367,26 +5556,30 @@ class EstadoPantallaBienesUVT extends State<PantallaBienesUVT> { // Renombrado d
 }
 
 //==============================================================================
-// 💾 PANTALLA DE COPIA DE SEGURIDAD (BackupScreen)
+// 💾 BACKUP SCREEN
 //==============================================================================
 
-class PantallaCopiaSeguridad extends StatefulWidget { // Renombrado de BackupScreen
+class PantallaCopiaSeguridad extends StatefulWidget {
   const PantallaCopiaSeguridad({super.key});
 
   @override
-  State<PantallaCopiaSeguridad> createState() => _EstadoPantallaCopiaSeguridad(); // Renombrado de _BackupScreenState
+  State<PantallaCopiaSeguridad> createState() =>
+      _EstadoPantallaCopiaSeguridad();
 }
 
-class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> { // Renombrado de _BackupScreenState
-  bool _estaCargando = false; // Renombrado de _isLoading
-  final List<String> _nombresCajas = [ // Renombrado de _boxNames
-    'debitos', 'bancos', 'movimientos', 'notas', 'ajustes', 'metas', // Renombrado de accounts, transactions, notes, settings, goals
-    'cuentasUVT', 'uvtValoresIniciales', 'bienesUVT', 'fechaDeclaracionUVT', 'categorias', 'uvt', 'recordatorios' // Agregada la nueva caja
+class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
+  bool _estaCargando = false;
+  final List<String> _nombresCajas = [
+    'debitos', 'bancos', 'movimientos', 'notas', 'ajustes', 'metas',
+    'metasHogar', // Añadida caja de metas del hogar al respaldo
+    'cuentasUVT', 'uvtValoresIniciales', 'bienesUVT', 'fechaDeclaracionUVT',
+    'categorias', 'uvt', 'recordatorios',
+    'finanzasHogar', // Añadida caja de finanzas del hogar al respaldo
   ];
 
-  Future<bool> _manejarPermisoAlmacenamiento() async { // Renombrado de _handleStoragePermission
+  Future<bool> _manejarPermisoAlmacenamiento() async {
     if (await Permission.manageExternalStorage.isGranted) return true;
-    final resultado = await Permission.manageExternalStorage.request(); // Renombrado de result
+    final resultado = await Permission.manageExternalStorage.request();
     if (resultado.isGranted) return true;
 
     if (mounted) {
@@ -3394,11 +5587,19 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> { // R
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Permiso Requerido'),
-          content: const Text('La app necesita permiso de almacenamiento para leer o guardar respaldos. Ve a los ajustes para concederlo.'),
+          content: const Text(
+            'La app necesita permiso de almacenamiento para leer o guardar respaldos. Ve a los ajustes para concederlo.',
+          ),
           actions: [
-            TextButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(context)),
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.pop(context),
+            ),
             ElevatedButton(
-              onPressed: () { openAppSettings(); Navigator.pop(context); },
+              onPressed: () {
+                openAppSettings();
+                Navigator.pop(context);
+              },
               child: const Text('Abrir Ajustes'),
             ),
           ],
@@ -3408,56 +5609,77 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> { // R
     return false;
   }
 
-  Future<void> _exportarDatos() async { // Renombrado de _exportData
-    if (!await _manejarPermisoAlmacenamiento()) { // Renombrado de _handleStoragePermission
-      _mostrarSnackbar('No se concedió el permiso de almacenamiento.', esError: true); // Renombrado de _showSnackbar, isError
+  Future<void> _exportarDatos() async {
+    if (!await _manejarPermisoAlmacenamiento()) {
+      _mostrarSnackbar(
+        'No se concedió el permiso de almacenamiento.',
+        esError: true,
+      );
       return;
     }
-    setState(() => _estaCargando = true); // Renombrado de _isLoading
+    setState(() => _estaCargando = true);
 
     try {
-      final Map<String, dynamic> todosLosDatos = {}; // Renombrado de allData
-      for (final nombreCaja in _nombresCajas) { // Renombrado de boxName, _boxNames
-        if (!Hive.isBoxOpen(nombreCaja)) await Hive.openBox(nombreCaja); // Renombrado de boxName
-        final caja = Hive.box(nombreCaja); // Renombrado de box, boxName
-        todosLosDatos[nombreCaja] = caja.toMap().map((key, value) => MapEntry(key.toString(), value)); // Renombrado de boxName, box
+      final Map<String, dynamic> todosLosDatos = {};
+      for (final nombreCaja in _nombresCajas) {
+        if (!Hive.isBoxOpen(nombreCaja)) await Hive.openBox(nombreCaja);
+        final caja = Hive.box(nombreCaja);
+        todosLosDatos[nombreCaja] = caja.toMap().map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
       }
-      final cadenaJson = jsonEncode(todosLosDatos); // Renombrado de jsonString, allData
+      final cadenaJson = jsonEncode(todosLosDatos);
 
-      Directory? directorioDescargas; // Renombrado de downloadsDir
+      Directory? directorioDescargas;
       if (Platform.isAndroid) {
         directorioDescargas = Directory('/storage/emulated/0/Download');
-        if(!await directorioDescargas.exists()) directorioDescargas = await getExternalStorageDirectory();
+        if (!await directorioDescargas.exists()) {
+          directorioDescargas = await getExternalStorageDirectory();
+        }
       } else {
         directorioDescargas = await getApplicationDocumentsDirectory();
       }
 
-      if (directorioDescargas == null) throw Exception("No se pudo obtener el directorio");
+      if (directorioDescargas == null) {
+        throw Exception("No se pudo obtener el directorio");
+      }
 
-      final fechaFormateada = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now()); // Renombrado de formattedDate
-      final rutaArchivo = '${directorioDescargas.path}/finanzas_respaldo_$fechaFormateada.json'; // Renombrado de filePath, downloadsDir, formattedDate
+      final fechaFormateada = DateFormat(
+        'yyyy-MM-dd_HH-mm-ss',
+      ).format(DateTime.now());
+      final rutaArchivo =
+          '${directorioDescargas.path}/finanzas_respaldo_$fechaFormateada.json';
 
-      final archivo = File(rutaArchivo); // Renombrado de file, filePath
-      await archivo.writeAsString(cadenaJson); // Renombrado de file, jsonString
-      _mostrarSnackbar('¡Exportación exitosa! Archivo guardado en: $rutaArchivo', esError: false); // Renombrado de _showSnackbar, filePath, isError
-
+      final archivo = File(rutaArchivo);
+      await archivo.writeAsString(cadenaJson);
+      _mostrarSnackbar(
+        '¡Exportación exitosa! Archivo guardado en: $rutaArchivo',
+        esError: false,
+      );
     } catch (e) {
-      _mostrarSnackbar('Ocurrió un error durante la exportación: $e'); // Renombrado de _showSnackbar
+      _mostrarSnackbar('Ocurrió un error durante la exportación: $e');
     } finally {
-      if (mounted) setState(() => _estaCargando = false); // Renombrado de _isLoading
+      if (mounted) setState(() => _estaCargando = false);
     }
   }
 
-  Future<void> _importarDatos() async { // Renombrado de _importData
+  Future<void> _importarDatos() async {
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('⚠️ ¡Atención!'),
-        content: const Text('Vas a reemplazar TODOS los datos actuales con los del respaldo. Esta acción no se puede deshacer. ¿Estás seguro?'),
+        content: const Text(
+          'Vas a reemplazar TODOS los datos actuales con los del respaldo. Esta acción no se puede deshacer. ¿Estás seguro?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: TemaApp._colorError), // Renombrado de AppTheme._colorError
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TemaApp._colorError,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Sí, importar'),
           ),
@@ -3466,105 +5688,137 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> { // R
     );
 
     if (confirmado != true) return;
-    if (!await _manejarPermisoAlmacenamiento()) { // Renombrado de _handleStoragePermission
-      _mostrarSnackbar('No se concedió el permiso para leer archivos.', esError: true); // Renombrado de _showSnackbar, isError
+    if (!await _manejarPermisoAlmacenamiento()) {
+      _mostrarSnackbar(
+        'No se concedió el permiso para leer archivos.',
+        esError: true,
+      );
       return;
     }
 
-    final resultado = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['json']); // Renombrado de result
+    final resultado = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
     if (resultado == null || resultado.files.single.path == null) {
-      _mostrarSnackbar('No se seleccionó ningún archivo.', esError: true); // Renombrado de _showSnackbar, isError
+      _mostrarSnackbar('No se seleccionó ningún archivo.', esError: true);
       return;
     }
-    setState(() => _estaCargando = true); // Renombrado de _isLoading
+    setState(() => _estaCargando = true);
 
     try {
-      final archivo = File(resultado.files.single.path!); // Renombrado de file, result
-      final cadenaJson = await archivo.readAsString(); // Renombrado de jsonString, file
-      final Map<String, dynamic> todosLosDatos = jsonDecode(cadenaJson); // Renombrado de allData, jsonString
+      final archivo = File(resultado.files.single.path!);
+      final cadenaJson = await archivo.readAsString();
+      final Map<String, dynamic> todosLosDatos = jsonDecode(cadenaJson);
 
-      for (final nombreCaja in _nombresCajas) { // Renombrado de boxName, _boxNames
+      for (final nombreCaja in _nombresCajas) {
         if (todosLosDatos.containsKey(nombreCaja)) {
-          if (!Hive.isBoxOpen(nombreCaja)) await Hive.openBox(nombreCaja); // Renombrado de boxName
-          final caja = Hive.box(nombreCaja); // Renombrado de box, boxName
-          await caja.clear(); // Renombrado de box
-          final datosDesdeRespaldo = todosLosDatos[nombreCaja] as Map<String, dynamic>; // Renombrado de dataFromBackup, boxName
-          final mapaFinal = datosDesdeRespaldo.map((key, value) => MapEntry(int.tryParse(key) ?? key, value)); // Renombrado de finalMap
-          await caja.putAll(mapaFinal); // Renombrado de box, finalMap
+          if (!Hive.isBoxOpen(nombreCaja)) await Hive.openBox(nombreCaja);
+          final caja = Hive.box(nombreCaja);
+          await caja.clear();
+          final datosDesdeRespaldo =
+              todosLosDatos[nombreCaja] as Map<String, dynamic>;
+          final mapaFinal = datosDesdeRespaldo.map(
+            (key, value) => MapEntry(int.tryParse(key) ?? key, value),
+          );
+          await caja.putAll(mapaFinal);
         }
       }
-      _mostrarSnackbar('¡Importación completada con éxito!', esError: false); // Renombrado de _showSnackbar, isError
+      _mostrarSnackbar('¡Importación completada con éxito!', esError: false);
       if (mounted) Navigator.of(context).pop();
-
     } catch (e) {
-      _mostrarSnackbar('Error al importar: El archivo podría estar dañado o no ser compatible. ($e)'); // Renombrado de _showSnackbar
+      _mostrarSnackbar(
+        'Error al importar: El archivo podría estar dañado o no ser compatible. ($e)',
+      );
     } finally {
-      if (mounted) setState(() => _estaCargando = false); // Renombrado de _isLoading
+      if (mounted) setState(() => _estaCargando = false);
     }
   }
 
-  void _mostrarSnackbar(String mensaje, {bool esError = false}) { // Renombrado de _showSnackbar, message, isError
+  void _mostrarSnackbar(String mensaje, {bool esError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(mensaje), // Renombrado de message
-      backgroundColor: esError ? TemaApp._colorError : Colors.green.shade600, // Renombrado de isError, AppTheme._colorError
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: esError ? TemaApp._colorError : Colors.green.shade600,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Copia de Seguridad')),
-      body: _estaCargando // Renombrado de _isLoading
-          ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Procesando...')]))
+      body: _estaCargando
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Procesando...'),
+                ],
+              ),
+            )
           : ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _construirTarjetaAccion( // Renombrado de _buildActionCard
-            titulo: 'Exportar Datos', // Renombrado de title
-            descripcion: 'Guarda todos tus datos en un archivo de respaldo (.json). Transfiere este archivo a un lugar seguro como tu email, Google Drive o tu computador.', // Renombrado de description
-            etiquetaBoton: 'Exportar Datos', // Renombrado de buttonLabel
-            icono: Icons.cloud_upload_outlined, // Renombrado de icon
-            alPresionar: _exportarDatos, // Renombrado de onPressed, _exportData
-            colorBoton: Theme.of(context).colorScheme.primary, // Renombrado de buttonColor
-          ),
-          const SizedBox(height: 24),
-          _construirTarjetaAccion( // Renombrado de _buildActionCard
-            titulo: 'Importar Datos', // Renombrado de title
-            descripcion: 'Restaura tus datos desde un archivo de respaldo. ADVERTENCIA: Esta acción borrará permanentemente todos los datos actuales de la aplicación.', // Renombrado de description
-            etiquetaBoton: 'Importar Datos', // Renombrado de buttonLabel
-            icono: Icons.cloud_download_outlined, // Renombrado de icon
-            alPresionar: _importarDatos, // Renombrado de onPressed, _importData
-            colorBoton: TemaApp._colorAdvertencia, // Renombrado de buttonColor, AppTheme._warningColor
-          ),
-          const SizedBox(height: 24),
-          // Nuevo botón para otorgar permisos de almacenamiento
-          _construirTarjetaAccion(
-            titulo: 'Otorgar Permisos de Almacenamiento',
-            descripcion: 'Asegúrate de que la aplicación tenga los permisos necesarios para acceder al almacenamiento y guardar/cargar tus copias de seguridad.',
-            etiquetaBoton: 'Abrir Ajustes de Permisos',
-            icono: Icons.settings_applications_outlined,
-            alPresionar: () async {
-              await _manejarPermisoAlmacenamiento();
-              // Opcional: mostrar un snackbar después de que el usuario regrese de los ajustes
-              if (await Permission.manageExternalStorage.isGranted) {
-                _mostrarSnackbar('Permiso de almacenamiento concedido.', esError: false);
-              } else {
-                _mostrarSnackbar('Permiso de almacenamiento no concedido.', esError: true);
-              }
-            },
-            colorBoton: Colors.blueGrey,
-          ),
-        ],
-      ),
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                _construirTarjetaAccion(
+                  titulo: 'Exportar Datos',
+                  descripcion:
+                      'Guarda todos tus datos en un archivo de respaldo (.json). Transfiere este archivo a un lugar seguro como tu email, Google Drive o tu computador.',
+                  etiquetaBoton: 'Exportar Datos',
+                  icono: Icons.cloud_upload_outlined,
+                  alPresionar: _exportarDatos,
+                  colorBoton: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 24),
+                _construirTarjetaAccion(
+                  titulo: 'Importar Datos',
+                  descripcion:
+                      'Restaura tus datos desde un archivo de respaldo. ADVERTENCIA: Esta acción borrará permanentemente todos los datos actuales de la aplicación.',
+                  etiquetaBoton: 'Importar Datos',
+                  icono: Icons.cloud_download_outlined,
+                  alPresionar: _importarDatos,
+                  colorBoton: TemaApp._colorAdvertencia,
+                ),
+                const SizedBox(height: 24),
+                _construirTarjetaAccion(
+                  titulo: 'Otorgar Permisos de Almacenamiento',
+                  descripcion:
+                      'Asegúrate de que la aplicación tenga los permisos necesarios para acceder al almacenamiento y guardar/cargar tus copias de seguridad.',
+                  etiquetaBoton: 'Abrir Ajustes de Permisos',
+                  icono: Icons.settings_applications_outlined,
+                  alPresionar: () async {
+                    await _manejarPermisoAlmacenamiento();
+                    if (await Permission.manageExternalStorage.isGranted) {
+                      _mostrarSnackbar(
+                        'Permiso de almacenamiento concedido.',
+                        esError: false,
+                      );
+                    } else {
+                      _mostrarSnackbar(
+                        'Permiso de almacenamiento no concedido.',
+                        esError: true,
+                      );
+                    }
+                  },
+                  colorBoton: Colors.blueGrey,
+                ),
+              ],
+            ),
     );
   }
 
-  Widget _construirTarjetaAccion({ // Renombrado de _buildActionCard
-    required String titulo, required String descripcion, required String etiquetaBoton, // Renombrado de title, description, buttonLabel
-    required IconData icono, required VoidCallback alPresionar, required Color colorBoton // Renombrado de icon, onPressed, buttonColor
+  Widget _construirTarjetaAccion({
+    required String titulo,
+    required String descripcion,
+    required String etiquetaBoton,
+    required IconData icono,
+    required VoidCallback alPresionar,
+    required Color colorBoton,
   }) {
     return Card(
       child: Padding(
@@ -3572,15 +5826,15 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> { // R
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(titulo, style: Theme.of(context).textTheme.headlineSmall), // Renombrado de title
+            Text(titulo, style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 12),
-            Text(descripcion, style: Theme.of(context).textTheme.bodyLarge), // Renombrado de description
+            Text(descripcion, style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              icon: Icon(icono), // Renombrado de icon
-              label: Text(etiquetaBoton), // Renombrado de buttonLabel
-              style: ElevatedButton.styleFrom(backgroundColor: colorBoton), // Renombrado de buttonColor
-              onPressed: alPresionar, // Renombrado de onPressed
+              icon: Icon(icono),
+              label: Text(etiquetaBoton),
+              style: ElevatedButton.styleFrom(backgroundColor: colorBoton),
+              onPressed: alPresionar,
             ),
           ],
         ),
@@ -3590,56 +5844,66 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> { // R
 }
 
 //==============================================================================
-// 🐞 PANTALLA DE DEPURACIÓN DE HIVE (HiveDebugScreen)
+// 🐞 HIVE DEBUG SCREEN
 //==============================================================================
 
-class PantallaDepuracionHive extends StatefulWidget { // Renombrado de HiveDebugScreen
+class PantallaDepuracionHive extends StatefulWidget {
   const PantallaDepuracionHive({super.key});
 
   @override
-  EstadoPantallaDepuracionHive createState() => EstadoPantallaDepuracionHive(); // Renombrado de HiveDebugScreenState
+  EstadoPantallaDepuracionHive createState() => EstadoPantallaDepuracionHive();
 }
 
-class EstadoPantallaDepuracionHive extends State<PantallaDepuracionHive> { // Renombrado de HiveDebugScreenState
-  String? cajaSeleccionada; // Renombrado de selectedBox
-  Map<dynamic, dynamic> contenidoCaja = {}; // Renombrado de boxContent
+class EstadoPantallaDepuracionHive extends State<PantallaDepuracionHive> {
+  String? cajaSeleccionada;
+  Map<dynamic, dynamic> contenidoCaja = {};
   final List<String> cajas = [
-    'bancos', 'movimientos', 'ajustes', 'notas', 'metas', 'debitos', // Renombrado de accounts, transactions, notes, settings, goals
-    'cuentasUVT', 'uvtValoresIniciales', 'bienesUVT', 'fechaDeclaracionUVT', 'categorias', 'uvt', 'recordatorios' // Agregada la nueva caja
+    'bancos', 'movimientos', 'ajustes', 'notas', 'metas', 'metasHogar',
+    'debitos', 'cuentasUVT', 'uvtValoresIniciales', 'bienesUVT',
+    'fechaDeclaracionUVT', 'categorias', 'uvt', 'recordatorios',
+    'finanzasHogar', // Cajas nuevas añadidas para depuración
   ];
 
-  void _cargarContenido() { // Renombrado de _loadContent
-    if (cajaSeleccionada != null && Hive.isBoxOpen(cajaSeleccionada!)) { // Renombrado de selectedBox
-      final caja = Hive.box(cajaSeleccionada!); // Renombrado de box, selectedBox
-      setState(() => contenidoCaja = caja.toMap()); // Renombrado de boxContent, box
+  void _cargarContenido() {
+    if (cajaSeleccionada != null && Hive.isBoxOpen(cajaSeleccionada!)) {
+      final caja = Hive.box(cajaSeleccionada!);
+      setState(() => contenidoCaja = caja.toMap());
     } else {
-      setState(() => contenidoCaja = {}); // Renombrado de boxContent
+      setState(() => contenidoCaja = {});
     }
   }
 
-  void _eliminarEntrada(dynamic llave) async { // Renombrado de _deleteEntry, key
-    await Hive.box(cajaSeleccionada!).delete(llave); // Renombrado de selectedBox, key
-    _cargarContenido(); // Renombrado de _loadContent
+  void _eliminarEntrada(dynamic llave) async {
+    await Hive.box(cajaSeleccionada!).delete(llave);
+    _cargarContenido();
   }
 
-  void _limpiarCaja() async { // Renombrado de _clearBox
+  void _limpiarCaja() async {
     final confirmado = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('¿Estás seguro?'),
-        content: Text('Esto eliminará TODOS los datos de la caja "$cajaSeleccionada".'), // Renombrado de selectedBox
+        content: Text(
+          'Esto eliminará TODOS los datos de la caja "$cajaSeleccionada".',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: TemaApp._colorError), // Renombrado de AppTheme._colorError
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Confirmar Eliminación')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TemaApp._colorError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmar Eliminación'),
+          ),
         ],
       ),
     );
     if (confirmado == true) {
-      await Hive.box(cajaSeleccionada!).clear(); // Renombrado de selectedBox
-      _cargarContenido(); // Renombrado de _loadContent
+      await Hive.box(cajaSeleccionada!).clear();
+      _cargarContenido();
     }
   }
 
@@ -3653,43 +5917,55 @@ class EstadoPantallaDepuracionHive extends State<PantallaDepuracionHive> { // Re
           children: [
             DropdownButtonFormField<String>(
               hint: const Text('Selecciona una caja Hive'),
-              value: cajaSeleccionada, // Renombrado de selectedBox
+              value: cajaSeleccionada,
               isExpanded: true,
-              items: cajas.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-              onChanged: (valor) { // Renombrado de value
-                setState(() => cajaSeleccionada = valor); // Renombrado de selectedBox
-                _cargarContenido(); // Renombrado de _loadContent
+              items: cajas
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
+              onChanged: (valor) {
+                setState(() => cajaSeleccionada = valor);
+                _cargarContenido();
               },
             ),
             const SizedBox(height: 16),
-            if (cajaSeleccionada != null) // Renombrado de selectedBox
+            if (cajaSeleccionada != null)
               Expanded(
-                child: contenidoCaja.isEmpty // Renombrado de boxContent
+                child: contenidoCaja.isEmpty
                     ? const Center(child: Text('Caja vacía o no seleccionada.'))
                     : ListView(
-                  children: contenidoCaja.entries.map((entrada) { // Renombrado de boxContent, entry
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        title: Text('Key: [${entrada.key}]', style: const TextStyle(fontWeight: FontWeight.bold)), // Renombrado de entry
-                        subtitle: Text(jsonEncode(entrada.value)), // Show full content for debugging
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, color: TemaApp._colorError), // Renombrado de AppTheme._colorError
-                          onPressed: () => _eliminarEntrada(entrada.key), // Renombrado de _deleteEntry, entry
-                        ),
+                        children: contenidoCaja.entries.map((entrada) {
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              title: Text(
+                                'Key: [${entrada.key}]',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(jsonEncode(entrada.value)),
+                              trailing: IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: TemaApp._colorError,
+                                ),
+                                onPressed: () => _eliminarEntrada(entrada.key),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
-                    );
-                  }).toList(),
-                ),
               ),
-            if (cajaSeleccionada != null && contenidoCaja.isNotEmpty) // Renombrado de selectedBox, boxContent
+            if (cajaSeleccionada != null && contenidoCaja.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 16.0),
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.delete_forever),
-                  label: Text('Limpiar toda la caja "$cajaSeleccionada"'), // Renombrado de selectedBox
-                  style: ElevatedButton.styleFrom(backgroundColor: TemaApp._colorError), // Renombrado de AppTheme._colorError
-                  onPressed: _limpiarCaja, // Renombrado de _clearBox
+                  label: Text('Limpiar toda la caja "$cajaSeleccionada"'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TemaApp._colorError,
+                  ),
+                  onPressed: _limpiarCaja,
                 ),
               ),
           ],
@@ -3699,28 +5975,50 @@ class EstadoPantallaDepuracionHive extends State<PantallaDepuracionHive> { // Re
   }
 }
 
-
 //==============================================================================
+// ⚙️ BACKGROUND LOGIC AND HELPER FUNCTIONS
+//==============================================================================
+
+/// Obtiene las cuentas del banco en el orden guardado por el usuario.
+/// Gets the bank accounts in the order saved by the user.
+List<MapEntry<int, dynamic>> getOrderedAccounts() {
+  final bankBox = Hive.box('bancos');
+  final settingsBox = Hive.box('ajustes');
+  final defaultOrder = bankBox.keys.cast<int>().toList();
+
+  final savedOrder = List<int>.from(
+    settingsBox.get('ordenCuentas', defaultValue: defaultOrder),
+  );
+
+  // Filtra llaves que pudieron ser eliminadas pero siguen en la lista de orden.
+  // Filters out keys that might have been deleted but are still in the order list.
+  final validOrder = savedOrder
+      .where((key) => bankBox.containsKey(key))
+      .toList();
+
+  return validOrder.map((key) => MapEntry(key, bankBox.get(key))).toList();
+}
 
 Future<void> ejecutarDebitosAutomaticos() async {
   final cajaDebitos = Hive.box('debitos');
-  final cajaBancos = Hive.box('bancos'); // Renombrado de accountsBox
-  final cajaMovimientos = Hive.box('movimientos'); // Renombrado de txBox
-  final hoy = DateTime.now(); // Renombrado de today
+  final cajaBancos = Hive.box('bancos');
+  final cajaMovimientos = Hive.box('movimientos');
+  final hoy = DateTime.now();
 
-  for (var llave in cajaDebitos.keys) { // Renombrado de key
+  for (var llave in cajaDebitos.keys) {
     final debito = cajaDebitos.get(llave);
 
-    // Add null checks and default values
     if (debito == null) continue;
 
-    final dia = debito['dia'] as int? ?? 1; // Default to 1st day of month if null
+    final dia = debito['dia'] as int? ?? 1;
     final ultimaEjecucion = debito['ultimaEjecucion'] as String?;
     final ultima = ultimaEjecucion != null
         ? DateTime.tryParse(ultimaEjecucion) ?? DateTime(2000)
         : DateTime(2000);
 
-    bool ejecutarHoy = hoy.day == dia && (ultima.year != hoy.year || ultima.month != hoy.month);
+    bool ejecutarHoy =
+        hoy.day == dia &&
+        (ultima.year != hoy.year || ultima.month != hoy.month);
 
     if (ejecutarHoy) {
       final idCuenta = debito['cuentaId'] as int?;
@@ -3750,14 +6048,14 @@ Future<void> ejecutarDebitosAutomaticos() async {
 
     final proximaFecha = _calcularProximaFecha(hoy, dia);
     debito['proximaFecha'] = proximaFecha.toIso8601String();
-    cajaDebitos.put(llave, debito); // Renombrado de key
+    cajaDebitos.put(llave, debito);
   }
 }
 
 DateTime _calcularProximaFecha(DateTime ultimaEjecucion, int dia) {
-  final ahora = DateTime.now(); // Renombrado de now
-  int proximoAnio = ahora.year; // Renombrado de proximoAnio, now
-  int proximoMes = ahora.month; // Renombrado de proximoMes, now
+  final ahora = DateTime.now();
+  int proximoAnio = ahora.year;
+  int proximoMes = ahora.month;
 
   if (ultimaEjecucion.year > 2000) {
     proximoAnio = ultimaEjecucion.year;
@@ -3767,13 +6065,11 @@ DateTime _calcularProximaFecha(DateTime ultimaEjecucion, int dia) {
   DateTime proximaFecha;
   try {
     proximaFecha = DateTime(proximoAnio, proximoMes, dia);
-  } catch(e) {
-    // Si el día no es válido para el mes (ej: 31 de Febrero), toma el último día.
+  } catch (e) {
     proximaFecha = DateTime(proximoAnio, proximoMes + 1, 0);
   }
 
-
-  if (proximaFecha.isBefore(ahora)) { // Renombrado de now
+  if (proximaFecha.isBefore(ahora)) {
     proximoMes++;
     if (proximoMes > 12) {
       proximoMes = 1;
@@ -3788,24 +6084,21 @@ DateTime _calcularProximaFecha(DateTime ultimaEjecucion, int dia) {
   return proximaFecha;
 }
 
-// Nueva función auxiliar para calcular la próxima fecha de un recordatorio
 DateTime? _calcularProximaFechaRecordatorio(Map recordatorio) {
   try {
     final ahora = DateTime.now();
-    final tipoFrecuencia = recordatorio['tipoFrecuencia'] as String? ?? 'Mensual';
+    final tipoFrecuencia =
+        recordatorio['tipoFrecuencia'] as String? ?? 'Mensual';
 
     switch (tipoFrecuencia) {
       case 'Una vez':
         final fechaStr = recordatorio['fecha'] as String?;
-        if (fechaStr == null || fechaStr.isEmpty) {
-          return null;
-        }
+        if (fechaStr == null || fechaStr.isEmpty) return null;
         return DateTime.tryParse(fechaStr);
       case 'Mensual':
         final dia = recordatorio['dia'] as int? ?? ahora.day;
         DateTime fechaIntento = DateTime(ahora.year, ahora.month, dia);
         if (fechaIntento.isBefore(ahora.subtract(const Duration(days: 1)))) {
-          // Si el día de este mes ya pasó, intenta el próximo mes
           return DateTime(ahora.year, ahora.month + 1, dia);
         }
         return fechaIntento;
@@ -3814,12 +6107,11 @@ DateTime? _calcularProximaFechaRecordatorio(Map recordatorio) {
         final mes = recordatorio['mes'] as int? ?? ahora.month;
         DateTime fechaIntento = DateTime(ahora.year, mes, dia);
         if (fechaIntento.isBefore(ahora.subtract(const Duration(days: 1)))) {
-          // Si el día y mes de este año ya pasaron, intenta el próximo año
           return DateTime(ahora.year + 1, mes, dia);
         }
         return fechaIntento;
       default:
-        return null; // En caso de tipo de frecuencia desconocido
+        return null;
     }
   } catch (e) {
     debugPrint('Error al calcular próxima fecha de recordatorio: $e');
