@@ -544,65 +544,65 @@ class EstadoPantallaInicio extends State<PantallaInicio>
   }
 
   Widget _construirListaCuentasReordenables(
-  List<MapEntry<int, dynamic>> accounts,
-) {
-  return ReorderableListView(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    onReorder: (indiceAntiguo, nuevoIndice) {
-      if (nuevoIndice > indiceAntiguo) nuevoIndice--;
+    List<MapEntry<int, dynamic>> accounts,
+  ) {
+    return ReorderableListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      onReorder: (indiceAntiguo, nuevoIndice) {
+        if (nuevoIndice > indiceAntiguo) nuevoIndice--;
 
-      final llavesVisibles = accounts.map((e) => e.key).toList();
-      final llaveMovida = llavesVisibles.removeAt(indiceAntiguo);
-      llavesVisibles.insert(nuevoIndice, llaveMovida);
+        final llavesVisibles = accounts.map((e) => e.key).toList();
+        final llaveMovida = llavesVisibles.removeAt(indiceAntiguo);
+        llavesVisibles.insert(nuevoIndice, llaveMovida);
 
-      final cajaAjustes = Hive.box('ajustes');
-      cajaAjustes.put('ordenCuentas', llavesVisibles);
-      setState(() {});
-    },
-    children: accounts.asMap().entries.map((entry) {
-      final index = entry.key;
-      final cuenta = entry.value.value;
-      final llave = entry.value.key;
-      
-      return Card(
-        key: ValueKey('cuenta_${llave}_$index'),
-        margin: const EdgeInsets.symmetric(vertical: 5),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
-          ),
-          leading: CircleAvatar(
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.primary.withAlpha(26),
-            child: Icon(
-              Icons.account_balance,
-              color: Theme.of(context).colorScheme.primary,
+        final cajaAjustes = Hive.box('ajustes');
+        cajaAjustes.put('ordenCuentas', llavesVisibles);
+        setState(() {});
+      },
+      children: accounts.asMap().entries.map((entry) {
+        final index = entry.key;
+        final cuenta = entry.value.value;
+        final llave = entry.value.key;
+
+        return Card(
+          key: ValueKey('cuenta_${llave}_$index'),
+          margin: const EdgeInsets.symmetric(vertical: 5),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
             ),
-          ),
-          title: Text(
-            cuenta['name'],
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          trailing: Text(
-            formatoMoneda.format(cuenta['balance']),
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-          ),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PantallaEditarCuenta(llaveCuenta: llave),
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.primary.withAlpha(26),
+              child: Icon(
+                Icons.account_balance,
+                color: Theme.of(context).colorScheme.primary,
               ),
-            ).whenComplete(() => setState(() {}));
-          },
-        ),
-      );
-    }).toList(),
-  );
-}
+            ),
+            title: Text(
+              cuenta['name'],
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            trailing: Text(
+              formatoMoneda.format(cuenta['balance']),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PantallaEditarCuenta(llaveCuenta: llave),
+                ),
+              ).whenComplete(() => setState(() {}));
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
 
   Widget _construirResumenDebitos(
     List<MapEntry<int, dynamic>> bancosConDebitos,
@@ -832,6 +832,11 @@ class EstadoPantallaInicio extends State<PantallaInicio>
           color: Colors.deepPurple,
         ),
         _construirHijoDialVelocidad(
+          Icons.pie_chart_outline,
+          'Presupuesto & Metas',
+          () => Navigator.pushNamed(context, '/budget'),
+        ),
+        _construirHijoDialVelocidad(
           Icons.event_repeat_outlined,
           'Débitos Automáticos',
           () => Navigator.pushNamed(context, '/debits'),
@@ -840,11 +845,6 @@ class EstadoPantallaInicio extends State<PantallaInicio>
           Icons.alarm_on_outlined,
           'Recordatorios',
           () => Navigator.pushNamed(context, '/reminders'),
-        ),
-        _construirHijoDialVelocidad(
-          Icons.pie_chart_outline,
-          'Presupuesto & Metas',
-          () => Navigator.pushNamed(context, '/budget'),
         ),
         _construirHijoDialVelocidad(
           Icons.assignment_outlined,
@@ -4497,9 +4497,7 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
             const SizedBox(height: 16),
             TextField(
               controller: controllerIngresoPersonal,
-              decoration: const InputDecoration(
-                labelText: "Tu Ingreso",
-              ),
+              decoration: const InputDecoration(labelText: "Tu Ingreso"),
               keyboardType: TextInputType.number,
               onEditingComplete: _guardarAjustes,
             ),
@@ -4566,7 +4564,6 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
       ),
     );
   }
-
 
   Card _buildPersonalConfigCard() {
     double totalAsignado =
@@ -4801,6 +4798,16 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
 
     if (metas.isEmpty) return const SizedBox.shrink();
 
+    // Obtener ingresos para calcular porcentajes de aporte
+    double ingresoPersonal =
+        double.tryParse(controllerIngresoPersonal.text) ?? 0.0;
+    double ingresoPareja = double.tryParse(controllerIngresoPareja.text) ?? 0.0;
+    double ingresoTotalHogar = ingresoPersonal + ingresoPareja;
+    double porcentajeAportePersonal = ingresoTotalHogar > 0
+        ? (ingresoPersonal / ingresoTotalHogar) * 100
+        : 0;
+    //double porcentajeAportePareja = 100 - porcentajeAportePersonal;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4816,6 +4823,16 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
             final llave = entry.key;
             final meta = entry.value;
             final mensual = meta['precio'] / meta['meses'];
+
+            // Calcular aporte personal si es meta del hogar
+            String infoAporte = '';
+            if (esHogar && ingresoTotalHogar > 0) {
+              double aportePersonal =
+                  (mensual * porcentajeAportePersonal) / 100;
+              infoAporte =
+                  '\nTu aporte: ${formatoMoneda.format(aportePersonal)} (${porcentajeAportePersonal.toStringAsFixed(1)}%)';
+            }
+
             String formatoAniosMeses(int meses) {
               final anios = meses ~/ 12;
               final resto = meses % 12;
@@ -4829,8 +4846,18 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
               margin: const EdgeInsets.symmetric(vertical: 5),
               child: ListTile(
                 title: Text('${meta['nombre']} (${meta['categoria']})'),
-                subtitle: Text(
-                  'Total: ${formatoMoneda.format(meta['precio'])} en ${formatoAniosMeses(meta['meses'])}',
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total: ${formatoMoneda.format(meta['precio'])} en ${formatoAniosMeses(meta['meses'])}',
+                    ),
+                    if (esHogar && ingresoTotalHogar > 0)
+                      Text(
+                        'Mensual: ${formatoMoneda.format(mensual)}$infoAporte',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
                 ),
                 trailing: Text(
                   '${formatoMoneda.format(mensual)}/mes',
@@ -5577,6 +5604,7 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
     'finanzasHogar', // Añadida caja de finanzas del hogar al respaldo
   ];
 
+
   Future<bool> _manejarPermisoAlmacenamiento() async {
     if (await Permission.manageExternalStorage.isGranted) return true;
     final resultado = await Permission.manageExternalStorage.request();
@@ -5750,7 +5778,9 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Copia de Seguridad')),
+      appBar: AppBar(
+        title: const Text('Copia de Seguridad'),
+      ),
       body: _estaCargando
           ? const Center(
               child: Column(
@@ -5982,21 +6012,63 @@ class EstadoPantallaDepuracionHive extends State<PantallaDepuracionHive> {
 /// Obtiene las cuentas del banco en el orden guardado por el usuario.
 /// Gets the bank accounts in the order saved by the user.
 List<MapEntry<int, dynamic>> getOrderedAccounts() {
-  final bankBox = Hive.box('bancos');
-  final settingsBox = Hive.box('ajustes');
-  final defaultOrder = bankBox.keys.cast<int>().toList();
+  try {
+    final bankBox = Hive.box('bancos');
+    final settingsBox = Hive.box('ajustes');
 
-  final savedOrder = List<int>.from(
-    settingsBox.get('ordenCuentas', defaultValue: defaultOrder),
-  );
+    // Obtener todas las cuentas únicas por ID
+    final Map<int, dynamic> cuentasUnicas = {};
+    for (var key in bankBox.keys) {
+      final cuenta = bankBox.get(key);
+      if (cuenta != null) {
+        cuentasUnicas[key] = cuenta;
+      }
+    }
 
-  // Filtra llaves que pudieron ser eliminadas pero siguen en la lista de orden.
-  // Filters out keys that might have been deleted but are still in the order list.
-  final validOrder = savedOrder
-      .where((key) => bankBox.containsKey(key))
-      .toList();
+    final defaultOrder = cuentasUnicas.keys.toList();
+    final savedOrder = List<int>.from(
+      settingsBox.get('ordenCuentas', defaultValue: defaultOrder),
+    );
 
-  return validOrder.map((key) => MapEntry(key, bankBox.get(key))).toList();
+    // Filtrar y mantener solo las cuentas que existen y son únicas
+    final validOrder = <int>[];
+    final idsVistos = <int>{};
+
+    // Primero las cuentas en el orden guardado
+    for (var id in savedOrder) {
+      if (cuentasUnicas.containsKey(id) && !idsVistos.contains(id)) {
+        validOrder.add(id);
+        idsVistos.add(id);
+      }
+    }
+
+    // Luego cualquier cuenta que no esté en el orden guardado
+    for (var id in defaultOrder) {
+      if (!idsVistos.contains(id)) {
+        validOrder.add(id);
+        idsVistos.add(id);
+      }
+    }
+
+    // Actualizar el orden guardado si es necesario
+    if (savedOrder.length != validOrder.length ||
+        !_listasIguales(savedOrder, validOrder)) {
+      settingsBox.put('ordenCuentas', validOrder);
+    }
+
+    return validOrder.map((key) => MapEntry(key, cuentasUnicas[key]!)).toList();
+  } catch (e) {
+    debugPrint('Error en getOrderedAccounts: $e');
+    return [];
+  }
+}
+
+bool _listasIguales(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (int i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }
 
 Future<void> ejecutarDebitosAutomaticos() async {
