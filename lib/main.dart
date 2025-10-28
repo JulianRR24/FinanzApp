@@ -230,6 +230,7 @@ void main() async {
   await Hive.openBox('uvt');
   await Hive.openBox('recordatorios');
   await Hive.openBox('finanzasHogar'); // NUEVA CAJA: Datos del Hogar
+  await Hive.openBox('historialHogarEditable');
 
   await initializeDateFormatting('es', null);
   await ejecutarDebitosAutomaticos();
@@ -2640,6 +2641,359 @@ class PantallaFinanzasHogar extends StatefulWidget {
 }
 
 class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
+  final cajaMovimientos = Hive.box('movimientos');
+  final cajaFinanzasHogar = Hive.box('finanzasHogar');
+  final cajaHistorialEditable = Hive.box('historialHogarEditable');
+  DateTime mesSeleccionado = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+  );
+
+  final _controladorIngresoPareja = TextEditingController();
+  final _controladorGastoPareja = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPartnerData();
+    _asegurarCopiaMes();
+    _controladorIngresoPareja.addListener(_savePartnerData);
+    _controladorGastoPareja.addListener(_savePartnerData);
+  }
+
+  @override
+  void dispose() {
+    _controladorIngresoPareja.removeListener(_savePartnerData);
+    _controladorGastoPareja.removeListener(_savePartnerData);
+    _controladorIngresoPareja.dispose();
+    _controladorGastoPareja.dispose();
+    super.dispose();
+  }
+
+  String _getClaveMes() => DateFormat('yyyy-MM').format(mesSeleccionado);
+
+  void _asegurarCopiaMes() {
+    final clave = _getClaveMes();
+    final existente = cajaHistorialEditable.get(clave);
+    if (existente == null) {
+      _sincronizarConOriginal();
+    }
+  }
+
+  List<Map> _obtenerListaEditableMes() {
+    final clave = _getClaveMes();
+    final lista = cajaHistorialEditable.get(clave, defaultValue: []);
+    return List<Map>.from(lista.map((e) => Map<String, dynamic>.from(e)));
+  }
+
+  void _guardarListaEditableMes(List<Map> lista) {
+    final clave = _getClaveMes();
+    cajaHistorialEditable.put(clave, lista);
+    if (mounted) setState(() {});
+  }
+
+  String _claveMovimiento(Map m) {
+    final d = m['date']?.toString() ?? '';
+    final t = m['type']?.toString() ?? '';
+    final a = m['amount']?.toString() ?? '';
+    final desc = (m['description'] ?? '').toString();
+    final acc = (m['account'] ?? m['from'] ?? '').toString();
+    final to = (m['to'] ?? '').toString();
+    final tg = (m['tipoGasto'] ?? '').toString();
+    return '$d|$t|$a|$desc|$acc|$to|$tg';
+  }
+
+  int _buscarIndiceMovimiento(Map mov) {
+    final base = _obtenerListaEditableMes();
+    final k = _claveMovimiento(mov);
+    for (int i = 0; i < base.length; i++) {
+      if (_claveMovimiento(base[i]) == k) return i;
+    }
+    return -1;
+  }
+
+  void _sincronizarConOriginal() {
+    final clave = _getClaveMes();
+    final lista = cajaMovimientos.values.where((mov) {
+      final fecha = DateTime.parse(mov['date']);
+      final esMes = fecha.year == mesSeleccionado.year && fecha.month == mesSeleccionado.month;
+      final esHogar = mov['type'] == 'Ingreso' || (mov['type'] == 'Gasto' && mov['tipoGasto'] == 'Hogar');
+      return esMes && esHogar;
+    }).map((m) {
+      final copia = Map<String, dynamic>.from(m);
+      copia['owner'] = (copia['owner'] ?? 'yo');
+      return copia;
+    }).toList();
+    cajaHistorialEditable.put(clave, lista);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _importarHistorialPareja() async {
+    final resultado = await FilePicker.platform.pickFiles(type: FileType.any);
+    if (resultado == null || resultado.files.isEmpty) return;
+    final archivo = resultado.files.first;
+    final ruta = archivo.path;
+    if (ruta == null) return;
+    final contenido = await File(ruta).readAsString();
+    List<Map> importados = [];
+    final rutaLower = ruta.toLowerCase();
+    if (rutaLower.endsWith('.json')) {
+      final data = jsonDecode(contenido);
+      if (data is List) {
+        importados = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } else if (rutaLower.endsWith('.csv')) {
+      final lineas = contenido.split(RegExp(r'\r?\n')).where((l) => l.trim().isNotEmpty).toList();
+      if (lineas.isNotEmpty) {
+        final headers = lineas.first.split(',').map((h) => h.trim().toLowerCase()).toList();
+        for (int i = 1; i < lineas.length; i++) {
+          final cols = lineas[i].split(',');
+          if (cols.length < headers.length) continue;
+          final Map<String, String> fila = {};
+          for (int c = 0; c < headers.length; c++) {
+            fila[headers[c]] = cols[c].trim();
+          }
+
+          final fechaStr = (fila['date'] ?? fila['fecha'] ?? '').trim();
+          final tipoStr = (fila['type'] ?? fila['tipo'] ?? '').trim();
+          final tipoGastoStr = (fila['tipogasto'] ?? fila['tipo_gasto'] ?? fila['categoria'] ?? '').trim();
+          final cuentaStr = (fila['account'] ?? fila['cuenta'] ?? fila['from'] ?? '').trim();
+          final destinoStr = (fila['to'] ?? fila['destino'] ?? '').trim();
+          final montoStr = (fila['amount'] ?? fila['monto'] ?? '').trim();
+          final descStr = (fila['descripcion'] ?? fila['descripción'] ?? fila['description'] ?? '').trim();
+
+          DateTime? fecha;
+          try { fecha = DateTime.parse(fechaStr); } catch (_) { fecha = null; }
+          final monto = double.tryParse(montoStr.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+          final tipo = tipoStr.isEmpty ? '' : tipoStr;
+          if (fecha != null && monto > 0 && (tipo == 'Ingreso' || tipo == 'Gasto')) {
+            importados.add({
+              'date': fecha.toIso8601String(),
+              'type': tipo,
+              'tipoGasto': tipo == 'Gasto' ? (tipoGastoStr.isEmpty ? 'Hogar' : tipoGastoStr) : null,
+              'account': cuentaStr,
+              'to': destinoStr.isEmpty ? null : destinoStr,
+              'amount': monto,
+              'description': descStr,
+            });
+          }
+        }
+      }
+    }
+    int totalLeidos = 0;
+    int validosMes = 0;
+    int agregados = 0;
+    int duplicados = 0;
+
+    List<Map> candidatos = [];
+    for (final raw in importados) {
+      totalLeidos++;
+      final mapa = Map<String, dynamic>.from(raw);
+      final fechaStr = (mapa['date'] ?? mapa['fecha'] ?? '').toString().trim();
+      final tipoStr = (mapa['type'] ?? mapa['tipo'] ?? '').toString().trim();
+      final tipoGastoStr = (mapa['tipoGasto'] ?? mapa['tipogasto'] ?? mapa['tipo_gasto'] ?? mapa['categoria'] ?? '').toString().trim();
+      final cuentaStr = (mapa['account'] ?? mapa['cuenta'] ?? mapa['from'] ?? '').toString().trim();
+      final destinoStr = (mapa['to'] ?? mapa['destino'] ?? '').toString().trim();
+      final dynamic valorAmount = (mapa['amount'] ?? mapa['monto']);
+      double monto;
+      if (valorAmount is num) {
+        monto = valorAmount.toDouble();
+      } else {
+        final montoStr = (valorAmount ?? '').toString().trim();
+        monto = double.tryParse(montoStr.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+      }
+      final descStr = (mapa['description'] ?? mapa['descripcion'] ?? mapa['descripción'] ?? '').toString().trim();
+
+      DateTime? fecha;
+      try { fecha = DateTime.parse(fechaStr); } catch (_) { fecha = null; }
+      final tipo = tipoStr;
+      if (fecha == null || monto <= 0 || (tipo != 'Ingreso' && tipo != 'Gasto')) {
+        continue;
+      }
+      if (!(fecha.year == mesSeleccionado.year && fecha.month == mesSeleccionado.month)) {
+        continue;
+      }
+      validosMes++;
+      candidatos.add({
+        'date': fecha.toIso8601String(),
+        'type': tipo,
+        'tipoGasto': tipo == 'Gasto' ? (tipoGastoStr.isEmpty ? 'Hogar' : tipoGastoStr) : null,
+        'account': cuentaStr,
+        'to': destinoStr.isEmpty ? null : destinoStr,
+        'amount': monto,
+        'description': descStr,
+      });
+    }
+
+    final aInsertar = candidatos.map((m) {
+      final copia = Map<String, dynamic>.from(m);
+      copia['owner'] = 'pareja';
+      return copia;
+    }).toList();
+
+    final actuales = _obtenerListaEditableMes();
+    final antes = actuales.length;
+    final fusionados = _fusionarListasSinDuplicados(actuales, aInsertar);
+    agregados = fusionados.length - antes;
+    duplicados = validosMes - agregados;
+    _guardarListaEditableMes(fusionados);
+
+    if (mounted) {
+      final mensaje = validosMes == 0
+          ? 'No se encontraron movimientos válidos para ${DateFormat('MMMM yyyy', 'es').format(mesSeleccionado)}.'
+          : 'Importación: leídos $totalLeidos, válidos $validosMes, agregados $agregados, duplicados $duplicados';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensaje)),
+      );
+    }
+  }
+
+  List<Map> _fusionarListasSinDuplicados(List<Map> base, List<Map> nuevos) {
+    final setClaves = <String>{};
+    String k(Map m) => '${m['date']}|${m['type']}|${m['amount']}|${(m['description'] ?? '').toString()}|${(m['owner'] ?? '').toString()}';
+    for (final m in base) { setClaves.add(k(m)); }
+    final resultado = List<Map>.from(base.map((e) => Map<String, dynamic>.from(e)));
+    for (final m in nuevos) {
+      if (!setClaves.contains(k(m))) {
+        resultado.add(Map<String, dynamic>.from(m));
+      }
+    }
+    return resultado;
+  }
+
+  Future<void> _agregarOModificarMovimiento({Map? mov, int? index}) async {
+    final controladorDescripcion = TextEditingController(text: mov?['description'] ?? '');
+    final controladorMonto = TextEditingController(text: mov?['amount']?.toString() ?? '');
+    String tipo = mov?['type'] ?? 'Gasto';
+    String tipoGasto = mov?['tipoGasto'] ?? 'Hogar';
+    DateTime fecha = mov != null ? DateTime.parse(mov['date']) : DateTime.now();
+    String cuenta = mov?['account'] ?? '';
+    String destino = mov?['to'] ?? '';
+    String propietario = (mov?['owner'] ?? 'yo').toString();
+
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: Text(index == null ? 'Nuevo movimiento hogar' : 'Editar movimiento hogar'),
+          content: StatefulBuilder(
+            builder: (context, setSt) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: tipo,
+                      items: const [
+                        DropdownMenuItem(value: 'Ingreso', child: Text('Ingreso')),
+                        DropdownMenuItem(value: 'Gasto', child: Text('Gasto')),
+                      ],
+                      onChanged: (v) => setSt(() => tipo = v ?? 'Gasto'),
+                      decoration: const InputDecoration(labelText: 'Tipo'),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: propietario,
+                      items: const [
+                        DropdownMenuItem(value: 'yo', child: Text('Mi movimiento')),
+                        DropdownMenuItem(value: 'pareja', child: Text('Movimiento de mi pareja')),
+                      ],
+                      onChanged: (v) => setSt(() => propietario = v ?? 'yo'),
+                      decoration: const InputDecoration(labelText: 'Propietario'),
+                    ),
+                    const SizedBox(height: 8),
+                    if (tipo == 'Gasto')
+                      DropdownButtonFormField<String>(
+                        value: tipoGasto,
+                        items: const [
+                          DropdownMenuItem(value: 'Hogar', child: Text('Hogar')),
+                          DropdownMenuItem(value: 'Personal', child: Text('Personal')),
+                        ],
+                        onChanged: (v) => setSt(() => tipoGasto = v ?? 'Hogar'),
+                        decoration: const InputDecoration(labelText: 'Tipo de gasto'),
+                      ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: controladorDescripcion,
+                      decoration: const InputDecoration(labelText: 'Descripción'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: controladorMonto,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Monto'),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: Text(DateFormat('yyyy-MM-dd HH:mm').format(fecha))),
+                        IconButton(
+                          icon: const Icon(Icons.date_range),
+                          onPressed: () async {
+                            final d = await showDatePicker(
+                              context: context,
+                              initialDate: fecha,
+                              firstDate: DateTime(2015),
+                              lastDate: DateTime.now().add(const Duration(days: 3650)),
+                              locale: const Locale('es'),
+                            );
+                            if (d != null) setSt(() => fecha = DateTime(d.year, d.month, d.day, fecha.hour, fecha.minute));
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.schedule),
+                          onPressed: () async {
+                            final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(fecha));
+                            if (t != null) setSt(() => fecha = DateTime(fecha.year, fecha.month, fecha.day, t.hour, t.minute));
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: TextEditingController(text: cuenta),
+                      onChanged: (v) => cuenta = v,
+                      decoration: const InputDecoration(labelText: 'Cuenta Origen'),
+                    ),
+                    if (tipo == 'Transferencia')
+                      TextField(
+                        controller: TextEditingController(text: destino),
+                        onChanged: (v) => destino = v,
+                        decoration: const InputDecoration(labelText: 'Cuenta Destino'),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Guardar')),
+          ],
+        );
+      },
+    );
+    if (res != true) return;
+    final monto = double.tryParse(controladorMonto.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+    if (monto <= 0) return;
+    final nuevo = {
+      'date': fecha.toIso8601String(),
+      'type': tipo,
+      'tipoGasto': tipo == 'Gasto' ? tipoGasto : null,
+      'account': cuenta,
+      'to': destino.isEmpty ? null : destino,
+      'amount': monto,
+      'description': controladorDescripcion.text.trim(),
+      'owner': propietario,
+    };
+    final lista = _obtenerListaEditableMes();
+    if (index == null) {
+      lista.add(nuevo);
+    } else {
+      lista[index] = nuevo;
+    }
+    _guardarListaEditableMes(lista);
+  }
   Future<void> exportarMovimientosAExcel(DateTime mes) async {
     final excel = Excel.createExcel();
     final hoja =
@@ -2654,16 +3008,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
       'Descripción',
     ]);
 
-    final movimientosMes = Hive.box('movimientos')
-        .toMap()
-        .entries
-        .where((entry) {
-          final mov = entry.value;
-          final fechaMov = DateTime.parse(mov['date']);
-          return fechaMov.year == mes.year && fechaMov.month == mes.month;
-        })
-        .map((entry) => entry.value)
-        .toList();
+    final movimientosMes = _obtenerListaEditableMes();
 
     for (var mov in movimientosMes) {
       final fechaMov = DateTime.parse(mov['date']);
@@ -2729,34 +3074,41 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
     return directorio?.path;
   }
 
-  final cajaMovimientos = Hive.box('movimientos');
-  final cajaFinanzasHogar = Hive.box('finanzasHogar');
-  DateTime mesSeleccionado = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-  );
-
-  final _controladorIngresoPareja = TextEditingController();
-  final _controladorGastoPareja = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPartnerData();
-    _controladorIngresoPareja.addListener(_savePartnerData);
-    _controladorGastoPareja.addListener(_savePartnerData);
+  Future<void> exportarMovimientosAJson(DateTime mes) async {
+    try {
+      final lista = _obtenerListaEditableMes().where((m) {
+        final f = DateTime.parse(m['date']);
+        return f.year == mes.year && f.month == mes.month;
+      }).toList();
+      final dir = await obtenerRutaDescarga();
+      if (dir == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo encontrar la carpeta de descargas.')),
+        );
+        return;
+      }
+      final nombre = 'movimientos_hogar_${DateFormat('MMMM_yyyy', 'es').format(mes)}.json';
+      final ruta = '$dir/$nombre';
+      final jsonStr = const JsonEncoder.withIndent('  ').convert(lista);
+      File(ruta)
+        ..createSync(recursive: true)
+        ..writeAsStringSync(jsonStr);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Archivo guardado en: $ruta')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al exportar: $e')),
+        );
+      }
+    }
   }
 
-  @override
-  void dispose() {
-    _controladorIngresoPareja.removeListener(_savePartnerData);
-    _controladorGastoPareja.removeListener(_savePartnerData);
-    _controladorIngresoPareja.dispose();
-    _controladorGastoPareja.dispose();
-    super.dispose();
-  }
-
-  String _getClaveMes() => DateFormat('yyyy-MM').format(mesSeleccionado);
+  
 
   void _loadPartnerData() {
     final claveMes = _getClaveMes();
@@ -2810,6 +3162,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
         1,
       );
       _loadPartnerData();
+      _asegurarCopiaMes();
     });
   }
 
@@ -2821,28 +3174,42 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
         1,
       );
       _loadPartnerData();
+      _asegurarCopiaMes();
     });
   }
 
   Map<String, double> calcularResumenHogar(DateTime mes) {
     double misIngresos = 0;
     double misGastosHogar = 0;
+    double ingresosParejaHist = 0;
+    double gastosParejaHist = 0;
 
-    for (var mov in cajaMovimientos.values) {
+    final lista = _obtenerListaEditableMes();
+    for (var mov in lista) {
       final fecha = DateTime.parse(mov['date']);
       if (fecha.month == mes.month && fecha.year == mes.year) {
-        final monto = mov['amount'] as double;
+        final monto = (mov['amount'] as num).toDouble();
+        final owner = (mov['owner'] ?? 'yo').toString();
         if (mov['type'] == 'Ingreso') {
-          misIngresos += monto;
+          if (owner == 'yo') {
+            misIngresos += monto;
+          } else {
+            ingresosParejaHist += monto;
+          }
         } else if (mov['type'] == 'Gasto' && mov['tipoGasto'] == 'Hogar') {
-          misGastosHogar += monto;
+          if (owner == 'yo') {
+            misGastosHogar += monto;
+          } else {
+            gastosParejaHist += monto;
+          }
         }
       }
     }
 
-    final ingresoPareja =
-        double.tryParse(_controladorIngresoPareja.text) ?? 0.0;
-    final gastoPareja = double.tryParse(_controladorGastoPareja.text) ?? 0.0;
+    final ingresoParejaCampo = double.tryParse(_controladorIngresoPareja.text) ?? 0.0;
+    final gastoParejaCampo = double.tryParse(_controladorGastoPareja.text) ?? 0.0;
+    final ingresoPareja = ingresoParejaCampo > 0 ? ingresoParejaCampo : ingresosParejaHist;
+    final gastoPareja = gastoParejaCampo > 0 ? gastoParejaCampo : gastosParejaHist;
 
     return {
       'misIngresos': misIngresos,
@@ -2898,6 +3265,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     seleccionada.month,
                   );
                   _loadPartnerData();
+                  _asegurarCopiaMes();
                 });
               }
             },
@@ -2905,17 +3273,10 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
         ],
       ),
       body: ValueListenableBuilder(
-        valueListenable: Hive.box('movimientos').listenable(),
+        valueListenable: cajaHistorialEditable.listenable(),
         builder: (context, Box box, _) {
           final resumen = calcularResumenHogar(mesSeleccionado);
-
-          final todosLosMovimientos = box.values.where((mov) {
-            final fechaMov = DateTime.parse(mov['date']);
-            return fechaMov.year == mesSeleccionado.year &&
-                fechaMov.month == mesSeleccionado.month &&
-                (mov['type'] == 'Ingreso' ||
-                    (mov['type'] == 'Gasto' && mov['tipoGasto'] == 'Hogar'));
-          }).toList();
+          final todosLosMovimientos = _obtenerListaEditableMes();
 
           todosLosMovimientos.sort(
             (a, b) =>
@@ -2942,9 +3303,24 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     ),
                   ),
                   IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    tooltip: 'Añadir',
+                    onPressed: () => _agregarOModificarMovimiento(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.upload_file),
+                    tooltip: 'Importar',
+                    onPressed: _importarHistorialPareja,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.sync),
+                    tooltip: 'Sincronizar',
+                    onPressed: _sincronizarConOriginal,
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.download),
-                    tooltip: 'Exportar a Excel',
-                    onPressed: () => exportarMovimientosAExcel(mesSeleccionado),
+                    tooltip: 'Exportar a JSON',
+                    onPressed: () => exportarMovimientosAJson(mesSeleccionado),
                   ),
                 ],
               ),
@@ -2957,9 +3333,29 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                   ),
                 )
               else
-                ...todosLosMovimientos.map(
-                  (mov) => _construirTileMovimiento(mov),
-                ),
+                ...todosLosMovimientos.asMap().entries.map((e) {
+                  final i = e.key;
+                  final mov = e.value;
+                  return Dismissible(
+                    key: ValueKey('hogar_$i'),
+                    background: Container(color: Colors.redAccent),
+                    onDismissed: (_) {
+                      final baseIndex = _buscarIndiceMovimiento(mov);
+                      if (baseIndex >= 0) {
+                        final lista = _obtenerListaEditableMes();
+                        lista.removeAt(baseIndex);
+                        _guardarListaEditableMes(lista);
+                      }
+                    },
+                    child: InkWell(
+                      onTap: () {
+                        final baseIndex = _buscarIndiceMovimiento(mov);
+                        _agregarOModificarMovimiento(mov: mov, index: baseIndex >= 0 ? baseIndex : null);
+                      },
+                      child: _construirTileMovimiento(mov),
+                    ),
+                  );
+                }),
             ],
           );
         },
@@ -3212,11 +3608,9 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
         icono = Icons.receipt_long_outlined;
         color = Theme.of(context).textTheme.bodySmall!.color!;
     }
-
-    String titulo = mov['description']?.isNotEmpty == true
+    final titulo = (mov['description']?.toString().isNotEmpty == true)
         ? mov['description']
-        : mov['account'];
-
+        : (mov['account']?.toString().isNotEmpty == true ? mov['account'] : '');
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
@@ -3229,7 +3623,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          DateFormat('dd MMM, HH:mm', 'es').format(DateTime.parse(mov['date'])),
+          '${DateFormat('dd MMM, HH:mm', 'es').format(DateTime.parse(mov['date']))} · ${(mov['owner'] ?? 'yo') == 'yo' ? 'Mío' : 'Pareja'}',
         ),
         trailing: Text(
           '${mov['type'] == 'Ingreso' ? '+' : '-'}${formatoMoneda.format(mov['amount'])}',
@@ -5602,6 +5996,7 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
     'cuentasUVT', 'uvtValoresIniciales', 'bienesUVT', 'fechaDeclaracionUVT',
     'categorias', 'uvt', 'recordatorios',
     'finanzasHogar', // Añadida caja de finanzas del hogar al respaldo
+    'historialHogarEditable',
   ];
 
 

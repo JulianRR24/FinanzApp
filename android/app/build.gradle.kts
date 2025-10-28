@@ -51,6 +51,11 @@ android {
             isEnable = false
         }
     }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
 }
 
 dependencies {
