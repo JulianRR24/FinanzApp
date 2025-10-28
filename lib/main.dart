@@ -2714,16 +2714,23 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
 
   void _sincronizarConOriginal() {
     final clave = _getClaveMes();
-    final lista = cajaMovimientos.values.where((mov) {
-      final fecha = DateTime.parse(mov['date']);
-      final esMes = fecha.year == mesSeleccionado.year && fecha.month == mesSeleccionado.month;
-      final esHogar = mov['type'] == 'Ingreso' || (mov['type'] == 'Gasto' && mov['tipoGasto'] == 'Hogar');
-      return esMes && esHogar;
-    }).map((m) {
-      final copia = Map<String, dynamic>.from(m);
-      copia['owner'] = (copia['owner'] ?? 'yo');
-      return copia;
-    }).toList();
+    final lista = cajaMovimientos.values
+        .where((mov) {
+          final fecha = DateTime.parse(mov['date']);
+          final esMes =
+              fecha.year == mesSeleccionado.year &&
+              fecha.month == mesSeleccionado.month;
+          final esHogar =
+              mov['type'] == 'Ingreso' ||
+              (mov['type'] == 'Gasto' && mov['tipoGasto'] == 'Hogar');
+          return esMes && esHogar;
+        })
+        .map((m) {
+          final copia = Map<String, dynamic>.from(m);
+          copia['owner'] = (copia['owner'] ?? 'yo');
+          return copia;
+        })
+        .toList();
     cajaHistorialEditable.put(clave, lista);
     if (mounted) setState(() {});
   }
@@ -2740,12 +2747,20 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
     if (rutaLower.endsWith('.json')) {
       final data = jsonDecode(contenido);
       if (data is List) {
-        importados = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        importados = data
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
       }
     } else if (rutaLower.endsWith('.csv')) {
-      final lineas = contenido.split(RegExp(r'\r?\n')).where((l) => l.trim().isNotEmpty).toList();
+      final lineas = contenido
+          .split(RegExp(r'\r?\n'))
+          .where((l) => l.trim().isNotEmpty)
+          .toList();
       if (lineas.isNotEmpty) {
-        final headers = lineas.first.split(',').map((h) => h.trim().toLowerCase()).toList();
+        final headers = lineas.first
+            .split(',')
+            .map((h) => h.trim().toLowerCase())
+            .toList();
         for (int i = 1; i < lineas.length; i++) {
           final cols = lineas[i].split(',');
           if (cols.length < headers.length) continue;
@@ -2756,21 +2771,44 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
 
           final fechaStr = (fila['date'] ?? fila['fecha'] ?? '').trim();
           final tipoStr = (fila['type'] ?? fila['tipo'] ?? '').trim();
-          final tipoGastoStr = (fila['tipogasto'] ?? fila['tipo_gasto'] ?? fila['categoria'] ?? '').trim();
-          final cuentaStr = (fila['account'] ?? fila['cuenta'] ?? fila['from'] ?? '').trim();
+          final tipoGastoStr =
+              (fila['tipogasto'] ??
+                      fila['tipo_gasto'] ??
+                      fila['categoria'] ??
+                      '')
+                  .trim();
+          final cuentaStr =
+              (fila['account'] ?? fila['cuenta'] ?? fila['from'] ?? '').trim();
           final destinoStr = (fila['to'] ?? fila['destino'] ?? '').trim();
           final montoStr = (fila['amount'] ?? fila['monto'] ?? '').trim();
-          final descStr = (fila['descripcion'] ?? fila['descripción'] ?? fila['description'] ?? '').trim();
+          final descStr =
+              (fila['descripcion'] ??
+                      fila['descripción'] ??
+                      fila['description'] ??
+                      '')
+                  .trim();
 
           DateTime? fecha;
-          try { fecha = DateTime.parse(fechaStr); } catch (_) { fecha = null; }
-          final monto = double.tryParse(montoStr.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+          try {
+            fecha = DateTime.parse(fechaStr);
+          } catch (_) {
+            fecha = null;
+          }
+          final monto =
+              double.tryParse(
+                montoStr.replaceAll('.', '').replaceAll(',', '.'),
+              ) ??
+              0;
           final tipo = tipoStr.isEmpty ? '' : tipoStr;
-          if (fecha != null && monto > 0 && (tipo == 'Ingreso' || tipo == 'Gasto')) {
+          if (fecha != null &&
+              monto > 0 &&
+              (tipo == 'Ingreso' || tipo == 'Gasto')) {
             importados.add({
               'date': fecha.toIso8601String(),
               'type': tipo,
-              'tipoGasto': tipo == 'Gasto' ? (tipoGastoStr.isEmpty ? 'Hogar' : tipoGastoStr) : null,
+              'tipoGasto': tipo == 'Gasto'
+                  ? (tipoGastoStr.isEmpty ? 'Hogar' : tipoGastoStr)
+                  : null,
               'account': cuentaStr,
               'to': destinoStr.isEmpty ? null : destinoStr,
               'amount': monto,
@@ -2791,33 +2829,64 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
       final mapa = Map<String, dynamic>.from(raw);
       final fechaStr = (mapa['date'] ?? mapa['fecha'] ?? '').toString().trim();
       final tipoStr = (mapa['type'] ?? mapa['tipo'] ?? '').toString().trim();
-      final tipoGastoStr = (mapa['tipoGasto'] ?? mapa['tipogasto'] ?? mapa['tipo_gasto'] ?? mapa['categoria'] ?? '').toString().trim();
-      final cuentaStr = (mapa['account'] ?? mapa['cuenta'] ?? mapa['from'] ?? '').toString().trim();
-      final destinoStr = (mapa['to'] ?? mapa['destino'] ?? '').toString().trim();
+      final tipoGastoStr =
+          (mapa['tipoGasto'] ??
+                  mapa['tipogasto'] ??
+                  mapa['tipo_gasto'] ??
+                  mapa['categoria'] ??
+                  '')
+              .toString()
+              .trim();
+      final cuentaStr =
+          (mapa['account'] ?? mapa['cuenta'] ?? mapa['from'] ?? '')
+              .toString()
+              .trim();
+      final destinoStr = (mapa['to'] ?? mapa['destino'] ?? '')
+          .toString()
+          .trim();
       final dynamic valorAmount = (mapa['amount'] ?? mapa['monto']);
       double monto;
       if (valorAmount is num) {
         monto = valorAmount.toDouble();
       } else {
         final montoStr = (valorAmount ?? '').toString().trim();
-        monto = double.tryParse(montoStr.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+        monto =
+            double.tryParse(
+              montoStr.replaceAll('.', '').replaceAll(',', '.'),
+            ) ??
+            0;
       }
-      final descStr = (mapa['description'] ?? mapa['descripcion'] ?? mapa['descripción'] ?? '').toString().trim();
+      final descStr =
+          (mapa['description'] ??
+                  mapa['descripcion'] ??
+                  mapa['descripción'] ??
+                  '')
+              .toString()
+              .trim();
 
       DateTime? fecha;
-      try { fecha = DateTime.parse(fechaStr); } catch (_) { fecha = null; }
+      try {
+        fecha = DateTime.parse(fechaStr);
+      } catch (_) {
+        fecha = null;
+      }
       final tipo = tipoStr;
-      if (fecha == null || monto <= 0 || (tipo != 'Ingreso' && tipo != 'Gasto')) {
+      if (fecha == null ||
+          monto <= 0 ||
+          (tipo != 'Ingreso' && tipo != 'Gasto')) {
         continue;
       }
-      if (!(fecha.year == mesSeleccionado.year && fecha.month == mesSeleccionado.month)) {
+      if (!(fecha.year == mesSeleccionado.year &&
+          fecha.month == mesSeleccionado.month)) {
         continue;
       }
       validosMes++;
       candidatos.add({
         'date': fecha.toIso8601String(),
         'type': tipo,
-        'tipoGasto': tipo == 'Gasto' ? (tipoGastoStr.isEmpty ? 'Hogar' : tipoGastoStr) : null,
+        'tipoGasto': tipo == 'Gasto'
+            ? (tipoGastoStr.isEmpty ? 'Hogar' : tipoGastoStr)
+            : null,
         'account': cuentaStr,
         'to': destinoStr.isEmpty ? null : destinoStr,
         'amount': monto,
@@ -2842,17 +2911,22 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
       final mensaje = validosMes == 0
           ? 'No se encontraron movimientos válidos para ${DateFormat('MMMM yyyy', 'es').format(mesSeleccionado)}.'
           : 'Importación: leídos $totalLeidos, válidos $validosMes, agregados $agregados, duplicados $duplicados';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mensaje)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensaje)));
     }
   }
 
   List<Map> _fusionarListasSinDuplicados(List<Map> base, List<Map> nuevos) {
     final setClaves = <String>{};
-    String k(Map m) => '${m['date']}|${m['type']}|${m['amount']}|${(m['description'] ?? '').toString()}|${(m['owner'] ?? '').toString()}';
-    for (final m in base) { setClaves.add(k(m)); }
-    final resultado = List<Map>.from(base.map((e) => Map<String, dynamic>.from(e)));
+    String k(Map m) =>
+        '${m['date']}|${m['type']}|${m['amount']}|${(m['description'] ?? '').toString()}|${(m['owner'] ?? '').toString()}';
+    for (final m in base) {
+      setClaves.add(k(m));
+    }
+    final resultado = List<Map>.from(
+      base.map((e) => Map<String, dynamic>.from(e)),
+    );
     for (final m in nuevos) {
       if (!setClaves.contains(k(m))) {
         resultado.add(Map<String, dynamic>.from(m));
@@ -2862,8 +2936,12 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
   }
 
   Future<void> _agregarOModificarMovimiento({Map? mov, int? index}) async {
-    final controladorDescripcion = TextEditingController(text: mov?['description'] ?? '');
-    final controladorMonto = TextEditingController(text: mov?['amount']?.toString() ?? '');
+    final controladorDescripcion = TextEditingController(
+      text: mov?['description'] ?? '',
+    );
+    final controladorMonto = TextEditingController(
+      text: mov?['amount']?.toString() ?? '',
+    );
     String tipo = mov?['type'] ?? 'Gasto';
     String tipoGasto = mov?['tipoGasto'] ?? 'Hogar';
     DateTime fecha = mov != null ? DateTime.parse(mov['date']) : DateTime.now();
@@ -2875,7 +2953,11 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
       context: context,
       builder: (_) {
         return AlertDialog(
-          title: Text(index == null ? 'Nuevo movimiento hogar' : 'Editar movimiento hogar'),
+          title: Text(
+            index == null
+                ? 'Nuevo movimiento hogar'
+                : 'Editar movimiento hogar',
+          ),
           content: StatefulBuilder(
             builder: (context, setSt) {
               return SingleChildScrollView(
@@ -2885,7 +2967,10 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     DropdownButtonFormField<String>(
                       value: tipo,
                       items: const [
-                        DropdownMenuItem(value: 'Ingreso', child: Text('Ingreso')),
+                        DropdownMenuItem(
+                          value: 'Ingreso',
+                          child: Text('Ingreso'),
+                        ),
                         DropdownMenuItem(value: 'Gasto', child: Text('Gasto')),
                       ],
                       onChanged: (v) => setSt(() => tipo = v ?? 'Gasto'),
@@ -2895,38 +2980,62 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     DropdownButtonFormField<String>(
                       value: propietario,
                       items: const [
-                        DropdownMenuItem(value: 'yo', child: Text('Mi movimiento')),
-                        DropdownMenuItem(value: 'pareja', child: Text('Movimiento de mi pareja')),
+                        DropdownMenuItem(
+                          value: 'yo',
+                          child: Text('Mi movimiento'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'pareja',
+                          child: Text('Movimiento de mi pareja'),
+                        ),
                       ],
                       onChanged: (v) => setSt(() => propietario = v ?? 'yo'),
-                      decoration: const InputDecoration(labelText: 'Propietario'),
+                      decoration: const InputDecoration(
+                        labelText: 'Propietario',
+                      ),
                     ),
                     const SizedBox(height: 8),
                     if (tipo == 'Gasto')
                       DropdownButtonFormField<String>(
                         value: tipoGasto,
                         items: const [
-                          DropdownMenuItem(value: 'Hogar', child: Text('Hogar')),
-                          DropdownMenuItem(value: 'Personal', child: Text('Personal')),
+                          DropdownMenuItem(
+                            value: 'Hogar',
+                            child: Text('Hogar'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Personal',
+                            child: Text('Personal'),
+                          ),
                         ],
                         onChanged: (v) => setSt(() => tipoGasto = v ?? 'Hogar'),
-                        decoration: const InputDecoration(labelText: 'Tipo de gasto'),
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de gasto',
+                        ),
                       ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: controladorDescripcion,
-                      decoration: const InputDecoration(labelText: 'Descripción'),
+                      decoration: const InputDecoration(
+                        labelText: 'Descripción',
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: controladorMonto,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(labelText: 'Monto'),
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Expanded(child: Text(DateFormat('yyyy-MM-dd HH:mm').format(fecha))),
+                        Expanded(
+                          child: Text(
+                            DateFormat('yyyy-MM-dd HH:mm').format(fecha),
+                          ),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.date_range),
                           onPressed: () async {
@@ -2934,17 +3043,42 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                               context: context,
                               initialDate: fecha,
                               firstDate: DateTime(2015),
-                              lastDate: DateTime.now().add(const Duration(days: 3650)),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 3650),
+                              ),
                               locale: const Locale('es'),
                             );
-                            if (d != null) setSt(() => fecha = DateTime(d.year, d.month, d.day, fecha.hour, fecha.minute));
+                            if (d != null) {
+                              setSt(
+                                () => fecha = DateTime(
+                                  d.year,
+                                  d.month,
+                                  d.day,
+                                  fecha.hour,
+                                  fecha.minute,
+                                ),
+                              );
+                            }
                           },
                         ),
                         IconButton(
                           icon: const Icon(Icons.schedule),
                           onPressed: () async {
-                            final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(fecha));
-                            if (t != null) setSt(() => fecha = DateTime(fecha.year, fecha.month, fecha.day, t.hour, t.minute));
+                            final t = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(fecha),
+                            );
+                            if (t != null) {
+                              setSt(
+                                () => fecha = DateTime(
+                                  fecha.year,
+                                  fecha.month,
+                                  fecha.day,
+                                  t.hour,
+                                  t.minute,
+                                ),
+                              );
+                            }
                           },
                         ),
                       ],
@@ -2953,13 +3087,17 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     TextField(
                       controller: TextEditingController(text: cuenta),
                       onChanged: (v) => cuenta = v,
-                      decoration: const InputDecoration(labelText: 'Cuenta Origen'),
+                      decoration: const InputDecoration(
+                        labelText: 'Cuenta Origen',
+                      ),
                     ),
                     if (tipo == 'Transferencia')
                       TextField(
                         controller: TextEditingController(text: destino),
                         onChanged: (v) => destino = v,
-                        decoration: const InputDecoration(labelText: 'Cuenta Destino'),
+                        decoration: const InputDecoration(
+                          labelText: 'Cuenta Destino',
+                        ),
                       ),
                   ],
                 ),
@@ -2967,14 +3105,24 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
             },
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Guardar')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Guardar'),
+            ),
           ],
         );
       },
     );
     if (res != true) return;
-    final monto = double.tryParse(controladorMonto.text.replaceAll('.', '').replaceAll(',', '.')) ?? 0;
+    final monto =
+        double.tryParse(
+          controladorMonto.text.replaceAll('.', '').replaceAll(',', '.'),
+        ) ??
+        0;
     if (monto <= 0) return;
     final nuevo = {
       'date': fecha.toIso8601String(),
@@ -2994,6 +3142,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
     }
     _guardarListaEditableMes(lista);
   }
+
   Future<void> exportarMovimientosAExcel(DateTime mes) async {
     final excel = Excel.createExcel();
     final hoja =
@@ -3084,31 +3233,32 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
       if (dir == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo encontrar la carpeta de descargas.')),
+          const SnackBar(
+            content: Text('No se pudo encontrar la carpeta de descargas.'),
+          ),
         );
         return;
       }
-      final nombre = 'movimientos_hogar_${DateFormat('MMMM_yyyy', 'es').format(mes)}.json';
+      final nombre =
+          'movimientos_hogar_${DateFormat('MMMM_yyyy', 'es').format(mes)}.json';
       final ruta = '$dir/$nombre';
       final jsonStr = const JsonEncoder.withIndent('  ').convert(lista);
       File(ruta)
         ..createSync(recursive: true)
         ..writeAsStringSync(jsonStr);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Archivo guardado en: $ruta')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Archivo guardado en: $ruta')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al exportar: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al exportar: $e')));
       }
     }
   }
-
-  
 
   void _loadPartnerData() {
     final claveMes = _getClaveMes();
@@ -3206,10 +3356,16 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
       }
     }
 
-    final ingresoParejaCampo = double.tryParse(_controladorIngresoPareja.text) ?? 0.0;
-    final gastoParejaCampo = double.tryParse(_controladorGastoPareja.text) ?? 0.0;
-    final ingresoPareja = ingresoParejaCampo > 0 ? ingresoParejaCampo : ingresosParejaHist;
-    final gastoPareja = gastoParejaCampo > 0 ? gastoParejaCampo : gastosParejaHist;
+    final ingresoParejaCampo =
+        double.tryParse(_controladorIngresoPareja.text) ?? 0.0;
+    final gastoParejaCampo =
+        double.tryParse(_controladorGastoPareja.text) ?? 0.0;
+    final ingresoPareja = ingresoParejaCampo > 0
+        ? ingresoParejaCampo
+        : ingresosParejaHist;
+    final gastoPareja = gastoParejaCampo > 0
+        ? gastoParejaCampo
+        : gastosParejaHist;
 
     return {
       'misIngresos': misIngresos,
@@ -3350,7 +3506,10 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     child: InkWell(
                       onTap: () {
                         final baseIndex = _buscarIndiceMovimiento(mov);
-                        _agregarOModificarMovimiento(mov: mov, index: baseIndex >= 0 ? baseIndex : null);
+                        _agregarOModificarMovimiento(
+                          mov: mov,
+                          index: baseIndex >= 0 ? baseIndex : null,
+                        );
                       },
                       child: _construirTileMovimiento(mov),
                     ),
@@ -5999,7 +6158,6 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
     'historialHogarEditable',
   ];
 
-
   Future<bool> _manejarPermisoAlmacenamiento() async {
     if (await Permission.manageExternalStorage.isGranted) return true;
     final resultado = await Permission.manageExternalStorage.request();
@@ -6173,9 +6331,7 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Copia de Seguridad'),
-      ),
+      appBar: AppBar(title: const Text('Copia de Seguridad')),
       body: _estaCargando
           ? const Center(
               child: Column(
