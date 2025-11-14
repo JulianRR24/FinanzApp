@@ -1,18 +1,3 @@
-// 📦 main.dart - App completa reestructurada con un diseño moderno y minimalista
-// Todo el código original está aquí, reorganizado para mayor claridad y con una nueva UI.
-// Se han añadido funcionalidades para la gestión de finanzas de hogar en pareja.
-//
-// -----------------------------------------------------------------------------
-//  NOTA DE ACTUALIZACIÓN:
-//  - SECCIÓN 2: Se mejoró la visualización y copia de datos de tarjetas.
-//    Se cambió el teclado de cuentas asociadas.
-//  - SECCIÓN 3: Se implementó un orden de cuentas global en toda la app.
-//  - SECCIÓN 4: Se corrigió la actualización en tiempo real en Finanzas Hogar.
-//  - SECCIÓN 5: Se rediseñó la pantalla de Presupuestos para incluir una
-//    pestaña de "Hogar" junto a la de "Personal", con lógica de aportes.
-//  - SECCIÓN 6: Se aplicaron optimizaciones generales y mejoras de código.
-// -----------------------------------------------------------------------------
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
