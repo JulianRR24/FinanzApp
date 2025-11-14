@@ -14,9 +14,9 @@
 // -----------------------------------------------------------------------------
 
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -28,6 +28,12 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// Import condicional para web
+import 'package:universal_html/html.dart' as html;
+
+// Import condicional para dart:io (solo disponible fuera de web)
+import 'dart:io' if (dart.library.html) 'io_stub.dart' as io;
+
 // Formateador de moneda global para toda la aplicación
 // Global currency formatter for the entire application
 final formatoMoneda = NumberFormat.currency(
@@ -35,6 +41,27 @@ final formatoMoneda = NumberFormat.currency(
   symbol: '\$',
   decimalDigits: 0,
 );
+
+//==============================================================================
+// 🌐 WEB HELPER FUNCTIONS
+//==============================================================================
+
+/// Descarga un archivo en web usando el navegador
+/// Downloads a file in web using the browser
+Future<void> descargarArchivoWeb(Uint8List bytes, String nombreArchivo) async {
+  if (kIsWeb) {
+    try {
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', nombreArchivo)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      debugPrint('Error al descargar archivo en web: $e');
+    }
+  }
+}
 
 //==============================================================================
 // 🎨 THEME AND GLOBAL STYLES SECTION
@@ -209,33 +236,72 @@ class TemaApp {
 //==============================================================================
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final directorioAppDoc = await getApplicationDocumentsDirectory();
-  await Hive.initFlutter(directorioAppDoc.path);
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Opening all Hive boxes
-  // Apertura de todas las cajas de Hive
-  await Hive.openBox('debitos');
-  await Hive.openBox('bancos');
-  await Hive.openBox('movimientos');
-  await Hive.openBox('notas');
-  await Hive.openBox('ajustes');
-  await Hive.openBox('metas');
-  await Hive.openBox('metasHogar'); // NUEVA CAJA: Metas del Hogar
-  await Hive.openBox('cuentasUVT');
-  await Hive.openBox('uvtValoresIniciales');
-  await Hive.openBox('bienesUVT');
-  await Hive.openBox('fechaDeclaracionUVT');
-  await Hive.openBox('categorias');
-  await Hive.openBox('uvt');
-  await Hive.openBox('recordatorios');
-  await Hive.openBox('finanzasHogar'); // NUEVA CAJA: Datos del Hogar
-  await Hive.openBox('historialHogarEditable');
+    // Inicializar Hive - en web no necesita path
+    if (kIsWeb) {
+      await Hive.initFlutter();
+    } else {
+      final directorioAppDoc = await getApplicationDocumentsDirectory();
+      await Hive.initFlutter(directorioAppDoc.path);
+    }
 
-  await initializeDateFormatting('es', null);
-  await ejecutarDebitosAutomaticos();
+    // Opening all Hive boxes
+    // Apertura de todas las cajas de Hive
+    await Hive.openBox('debitos');
+    await Hive.openBox('bancos');
+    await Hive.openBox('movimientos');
+    await Hive.openBox('notas');
+    await Hive.openBox('ajustes');
+    await Hive.openBox('metas');
+    await Hive.openBox('metasHogar'); // NUEVA CAJA: Metas del Hogar
+    await Hive.openBox('cuentasUVT');
+    await Hive.openBox('uvtValoresIniciales');
+    await Hive.openBox('bienesUVT');
+    await Hive.openBox('fechaDeclaracionUVT');
+    await Hive.openBox('categorias');
+    await Hive.openBox('uvt');
+    await Hive.openBox('recordatorios');
+    await Hive.openBox('finanzasHogar'); // NUEVA CAJA: Datos del Hogar
+    await Hive.openBox('historialHogarEditable');
 
-  runApp(const MiApp());
+    await initializeDateFormatting('es', null);
+
+    // Solo ejecutar débitos automáticos si no estamos en web
+    if (!kIsWeb) {
+      await ejecutarDebitosAutomaticos();
+    }
+
+    runApp(const MiApp());
+  } catch (e, stackTrace) {
+    debugPrint('Error al inicializar la aplicación: $e');
+    debugPrint('Stack trace: $stackTrace');
+    // Aún así intentar ejecutar la app
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error al inicializar: $e'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    main();
+                  },
+                  child: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MiApp extends StatelessWidget {
@@ -2169,27 +2235,42 @@ class EstadoPantallaHistorialMovimientos
       }
     }
     try {
-      final dir = await obtenerRutaDescarga();
-      if (dir == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo encontrar la carpeta de descargas.'),
-          ),
-        );
-        return;
-      }
-      final rutaArchivo =
-          '$dir/movimientos_${DateFormat('MMMM_yyyy', 'es').format(mes)}.xlsx';
+      final nombreArchivo =
+          'movimientos_${DateFormat('MMMM_yyyy', 'es').format(mes)}.xlsx';
       final bytesArchivo = excel.save();
       if (bytesArchivo != null) {
-        File(rutaArchivo)
-          ..createSync(recursive: true)
-          ..writeAsBytesSync(bytesArchivo);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Archivo guardado en: $rutaArchivo')),
+        if (kIsWeb) {
+          // Descargar directamente en web
+          await descargarArchivoWeb(
+            Uint8List.fromList(bytesArchivo),
+            nombreArchivo,
           );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Archivo descargado: $nombreArchivo')),
+            );
+          }
+        } else {
+          // Código existente para móvil
+          final dir = await obtenerRutaDescarga();
+          if (dir == null) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No se pudo encontrar la carpeta de descargas.'),
+              ),
+            );
+            return;
+          }
+          final rutaArchivo = '$dir/$nombreArchivo';
+          io.File(rutaArchivo)
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(bytesArchivo);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Archivo guardado en: $rutaArchivo')),
+            );
+          }
         }
       }
     } catch (e) {
@@ -2202,12 +2283,17 @@ class EstadoPantallaHistorialMovimientos
   }
 
   Future<String?> obtenerRutaDescarga() async {
-    Directory? directorio;
+    if (kIsWeb) {
+      // En web no hay ruta, se descarga directamente
+      return null;
+    }
+
+    dynamic directorio;
     try {
-      if (Platform.isIOS) {
+      if (io.Platform.isIOS) {
         directorio = await getApplicationDocumentsDirectory();
       } else {
-        directorio = Directory('/storage/emulated/0/Download');
+        directorio = io.Directory('/storage/emulated/0/Download');
         if (!await directorio.exists()) {
           directorio = await getExternalStorageDirectory();
         }
@@ -2739,11 +2825,32 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
     final resultado = await FilePicker.platform.pickFiles(type: FileType.any);
     if (resultado == null || resultado.files.isEmpty) return;
     final archivo = resultado.files.first;
-    final ruta = archivo.path;
-    if (ruta == null) return;
-    final contenido = await File(ruta).readAsString();
+
+    String contenido;
+    String nombreArchivo = archivo.name ?? '';
+    if (kIsWeb) {
+      // En web, leer los bytes directamente
+      final bytes = archivo.bytes;
+      if (bytes == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudieron leer los bytes del archivo'),
+            ),
+          );
+        }
+        return;
+      }
+      contenido = utf8.decode(bytes);
+    } else {
+      // En móvil, leer desde la ruta
+      final ruta = archivo.path;
+      if (ruta == null) return;
+      contenido = await io.File(ruta).readAsString();
+      nombreArchivo = ruta;
+    }
     List<Map> importados = [];
-    final rutaLower = ruta.toLowerCase();
+    final rutaLower = nombreArchivo.toLowerCase();
     if (rutaLower.endsWith('.json')) {
       final data = jsonDecode(contenido);
       if (data is List) {
@@ -3173,28 +3280,42 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
     }
 
     try {
-      final dir = await obtenerRutaDescarga();
-      if (dir == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo encontrar la carpeta de descargas.'),
-          ),
-        );
-        return;
-      }
-
-      final rutaArchivo =
-          '$dir/movimientos_hogar_${DateFormat('MMMM_yyyy', 'es').format(mes)}.xlsx';
+      final nombreArchivo =
+          'movimientos_hogar_${DateFormat('MMMM_yyyy', 'es').format(mes)}.xlsx';
       final bytesArchivo = excel.save();
       if (bytesArchivo != null) {
-        File(rutaArchivo)
-          ..createSync(recursive: true)
-          ..writeAsBytesSync(bytesArchivo);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Archivo guardado en: $rutaArchivo')),
+        if (kIsWeb) {
+          // Descargar directamente en web
+          await descargarArchivoWeb(
+            Uint8List.fromList(bytesArchivo),
+            nombreArchivo,
           );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Archivo descargado: $nombreArchivo')),
+            );
+          }
+        } else {
+          // Código existente para móvil
+          final dir = await obtenerRutaDescarga();
+          if (dir == null) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No se pudo encontrar la carpeta de descargas.'),
+              ),
+            );
+            return;
+          }
+          final rutaArchivo = '$dir/$nombreArchivo';
+          io.File(rutaArchivo)
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(bytesArchivo);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Archivo guardado en: $rutaArchivo')),
+            );
+          }
         }
       }
     } catch (e) {
@@ -3207,12 +3328,17 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
   }
 
   Future<String?> obtenerRutaDescarga() async {
-    Directory? directorio;
+    if (kIsWeb) {
+      // En web no hay ruta, se descarga directamente
+      return null;
+    }
+
+    dynamic directorio;
     try {
-      if (Platform.isIOS) {
+      if (io.Platform.isIOS) {
         directorio = await getApplicationDocumentsDirectory();
       } else {
-        directorio = Directory('/storage/emulated/0/Download');
+        directorio = io.Directory('/storage/emulated/0/Download');
         if (!await directorio.exists()) {
           directorio = await getExternalStorageDirectory();
         }
@@ -3229,27 +3355,40 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
         final f = DateTime.parse(m['date']);
         return f.year == mes.year && f.month == mes.month;
       }).toList();
-      final dir = await obtenerRutaDescarga();
-      if (dir == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo encontrar la carpeta de descargas.'),
-          ),
-        );
-        return;
-      }
       final nombre =
           'movimientos_hogar_${DateFormat('MMMM_yyyy', 'es').format(mes)}.json';
-      final ruta = '$dir/$nombre';
       final jsonStr = const JsonEncoder.withIndent('  ').convert(lista);
-      File(ruta)
-        ..createSync(recursive: true)
-        ..writeAsStringSync(jsonStr);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Archivo guardado en: $ruta')));
+      final bytesJson = utf8.encode(jsonStr);
+
+      if (kIsWeb) {
+        // Descargar directamente en web
+        await descargarArchivoWeb(Uint8List.fromList(bytesJson), nombre);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Archivo descargado: $nombre')),
+          );
+        }
+      } else {
+        // Código existente para móvil
+        final dir = await obtenerRutaDescarga();
+        if (dir == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo encontrar la carpeta de descargas.'),
+            ),
+          );
+          return;
+        }
+        final ruta = '$dir/$nombre';
+        io.File(ruta)
+          ..createSync(recursive: true)
+          ..writeAsStringSync(jsonStr);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Archivo guardado en: $ruta')));
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -6159,6 +6298,11 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
   ];
 
   Future<bool> _manejarPermisoAlmacenamiento() async {
+    if (kIsWeb) {
+      // En web no se necesitan permisos para descargar archivos
+      return true;
+    }
+
     if (await Permission.manageExternalStorage.isGranted) return true;
     final resultado = await Permission.manageExternalStorage.request();
     if (resultado.isGranted) return true;
@@ -6191,7 +6335,7 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
   }
 
   Future<void> _exportarDatos() async {
-    if (!await _manejarPermisoAlmacenamiento()) {
+    if (!kIsWeb && !await _manejarPermisoAlmacenamiento()) {
       _mostrarSnackbar(
         'No se concedió el permiso de almacenamiento.',
         esError: true,
@@ -6210,33 +6354,44 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
         );
       }
       final cadenaJson = jsonEncode(todosLosDatos);
-
-      Directory? directorioDescargas;
-      if (Platform.isAndroid) {
-        directorioDescargas = Directory('/storage/emulated/0/Download');
-        if (!await directorioDescargas.exists()) {
-          directorioDescargas = await getExternalStorageDirectory();
-        }
-      } else {
-        directorioDescargas = await getApplicationDocumentsDirectory();
-      }
-
-      if (directorioDescargas == null) {
-        throw Exception("No se pudo obtener el directorio");
-      }
+      final bytesJson = utf8.encode(cadenaJson);
 
       final fechaFormateada = DateFormat(
         'yyyy-MM-dd_HH-mm-ss',
       ).format(DateTime.now());
-      final rutaArchivo =
-          '${directorioDescargas.path}/finanzas_respaldo_$fechaFormateada.json';
+      final nombreArchivo = 'finanzas_respaldo_$fechaFormateada.json';
 
-      final archivo = File(rutaArchivo);
-      await archivo.writeAsString(cadenaJson);
-      _mostrarSnackbar(
-        '¡Exportación exitosa! Archivo guardado en: $rutaArchivo',
-        esError: false,
-      );
+      if (kIsWeb) {
+        // Descargar directamente en web
+        await descargarArchivoWeb(Uint8List.fromList(bytesJson), nombreArchivo);
+        _mostrarSnackbar(
+          '¡Exportación exitosa! Archivo descargado: $nombreArchivo',
+          esError: false,
+        );
+      } else {
+        // Código existente para móvil
+        dynamic directorioDescargas;
+        if (io.Platform.isAndroid) {
+          directorioDescargas = io.Directory('/storage/emulated/0/Download');
+          if (!await directorioDescargas.exists()) {
+            directorioDescargas = await getExternalStorageDirectory();
+          }
+        } else {
+          directorioDescargas = await getApplicationDocumentsDirectory();
+        }
+
+        if (directorioDescargas == null) {
+          throw Exception("No se pudo obtener el directorio");
+        }
+
+        final rutaArchivo = '${directorioDescargas.path}/$nombreArchivo';
+        final archivo = io.File(rutaArchivo);
+        await archivo.writeAsString(cadenaJson);
+        _mostrarSnackbar(
+          '¡Exportación exitosa! Archivo guardado en: $rutaArchivo',
+          esError: false,
+        );
+      }
     } catch (e) {
       _mostrarSnackbar('Ocurrió un error durante la exportación: $e');
     } finally {
@@ -6269,7 +6424,7 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
     );
 
     if (confirmado != true) return;
-    if (!await _manejarPermisoAlmacenamiento()) {
+    if (!kIsWeb && !await _manejarPermisoAlmacenamiento()) {
       _mostrarSnackbar(
         'No se concedió el permiso para leer archivos.',
         esError: true,
@@ -6281,15 +6436,34 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
       type: FileType.custom,
       allowedExtensions: ['json'],
     );
-    if (resultado == null || resultado.files.single.path == null) {
+
+    if (resultado == null) {
       _mostrarSnackbar('No se seleccionó ningún archivo.', esError: true);
       return;
     }
+
     setState(() => _estaCargando = true);
 
     try {
-      final archivo = File(resultado.files.single.path!);
-      final cadenaJson = await archivo.readAsString();
+      String cadenaJson;
+
+      if (kIsWeb) {
+        // En web, leer los bytes directamente
+        final bytes = resultado.files.single.bytes;
+        if (bytes == null) {
+          throw Exception('No se pudieron leer los bytes del archivo');
+        }
+        cadenaJson = utf8.decode(bytes);
+      } else {
+        // En móvil, leer desde la ruta
+        final path = resultado.files.single.path;
+        if (path == null) {
+          throw Exception('No se pudo obtener la ruta del archivo');
+        }
+        final archivo = io.File(path);
+        cadenaJson = await archivo.readAsString();
+      }
+
       final Map<String, dynamic> todosLosDatos = jsonDecode(cadenaJson);
 
       for (final nombreCaja in _nombresCajas) {
