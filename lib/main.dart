@@ -38,9 +38,6 @@ Future<void> descargarArchivoWeb(Uint8List bytes, String nombreArchivo) async {
     try {
       final blob = html.Blob([bytes]);
       final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', nombreArchivo)
-        ..click();
       html.Url.revokeObjectUrl(url);
     } catch (e) {
       debugPrint('Error al descargar archivo en web: $e');
@@ -2812,7 +2809,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
     final archivo = resultado.files.first;
 
     String contenido;
-    String nombreArchivo = archivo.name ?? '';
+    String nombreArchivo = archivo.name;
     if (kIsWeb) {
       // En web, leer los bytes directamente
       final bytes = archivo.bytes;
