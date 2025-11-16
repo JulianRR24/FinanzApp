@@ -17,18 +17,14 @@ FinanzApp JRR es tu asistente financiero personal diseñado para ayudarte a:
 ## 🚀 Acceso Rápido
 
 ### 🌐 Versión Web (Recomendada)
-**Disponible en:** [GitHub Pages](https://julianrr24.github.io/FinanzApp/)
+**Disponible en:** [FinanzApp web](https://julianrr24.github.io/FinanzApp/)
 
 *Accede desde cualquier navegador sin instalar nada*
 
 ### 📲 Versión Móvil
 **Instalación local:**
-```bash
-git clone https://github.com/JulianRR24/FinanzApp.git
-cd FinanzApp
-flutter pub get
-flutter run
-```
+Descarga el apk desde el aparatdo de Releases
+**Descarga aqui:** [FinanzApp Apk](https://github.com/JulianRR24/FinanzApp/releases/download/1.4/app-release.apk)
 
 ---
 
@@ -249,17 +245,11 @@ FinanzApp/
 
 ---
 
-## 📄 Licencia
-
-Este proyecto está bajo la **Licencia MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
-
----
-
 ## 🆘 Soporte y Contacto
 
 ### Obtener Ayuda
 - 📋 **Issues:** Reporta problemas o solicita funciones
-- 📧 **Contacto directo:** [julianrr24@ejemplo.com]
+- 📧 **Contacto directo:** [julianramirezreyes23@gmail.com](mailto:julianramirezreyes23@gmail.com)
 - 📖 **Documentación:** Revisa este README y el código fuente
 
 ### Preguntas Frecuentes
