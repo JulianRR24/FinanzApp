@@ -23,7 +23,7 @@ FinanzApp JRR es tu asistente financiero personal diseñado para ayudarte a:
 
 ### 📲 Versión Móvil
 **Instalación local:**
-Descarga el apk desde el aparatdo de Releases
+Descarga el apk desde el apartado de Releases: [Releases](https://github.com/JulianRR24/FinanzApp/releases)
 **Descarga aqui:** [FinanzApp Apk](https://github.com/JulianRR24/FinanzApp/releases/download/1.4/app-release.apk)
 
 ---
