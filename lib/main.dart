@@ -3351,7 +3351,17 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Archivo descargado: $nombre')),
+            SnackBar(
+              content: Text('✅ Archivo descargado: $nombre'),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: '¿Dónde?',
+                onPressed: () {
+                  _mostrarDialogoUbicacionArchivo(nombre);
+                },
+              ),
+            ),
           );
         }
       } else {
@@ -3500,6 +3510,51 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
       'totalIngresos': misIngresos + ingresoPareja,
       'totalGastosHogar': misGastosHogar + gastoPareja,
     };
+  }
+
+  void _mostrarDialogoUbicacionArchivo(String nombreArchivo) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('📁 ¿Dónde está mi archivo?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Archivo: $nombreArchivo'),
+            const SizedBox(height: 16),
+            const Text(
+              'Ubicación:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const Text('Carpeta de descargas de tu navegador'),
+            const SizedBox(height: 12),
+            const Text(
+              'Para encontrarlo rápidamente:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const Text('• Chrome: Ctrl+J'),
+            const Text('• Firefox: Ctrl+J'),
+            const Text('• Safari: Cmd+Option+L'),
+            const Text('• Edge: Ctrl+J'),
+            const SizedBox(height: 12),
+            Text(
+              '💡 Tip: Busca por nombre: "$nombreArchivo"',
+              style: TextStyle(
+                color: Colors.blue.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -6340,7 +6395,7 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
         );
       }
       final cadenaJson = jsonEncode(todosLosDatos);
-      
+
       final fechaFormateada = DateFormat(
         'yyyy-MM-dd_HH-mm-ss',
       ).format(DateTime.now());
@@ -6351,9 +6406,9 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
         await SupabaseExportService.exportBackupComplete(
           todosLosDatos.map((key, value) => MapEntry(key.toString(), value)),
         );
-        _mostrarSnackbar(
-          '¡Exportación exitosa! Archivo descargado: $nombreArchivo',
-          esError: false,
+        _mostrarSnackbarConUbicacion(
+          '✅ Exportación completada: $nombreArchivo',
+          nombreArchivo,
         );
       } else {
         // Código existente para móvil
@@ -6485,6 +6540,68 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
         backgroundColor: esError ? TemaApp._colorError : Colors.green.shade600,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  void _mostrarSnackbarConUbicacion(String mensaje, String nombreArchivo) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: '¿Dónde?',
+          onPressed: () {
+            _mostrarDialogoUbicacionArchivoCopiaSeguridad(nombreArchivo);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDialogoUbicacionArchivoCopiaSeguridad(String nombreArchivo) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('📁 ¿Dónde está mi archivo?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Archivo: $nombreArchivo'),
+            const SizedBox(height: 16),
+            const Text(
+              'Ubicación:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const Text('Carpeta de descargas de tu navegador'),
+            const SizedBox(height: 12),
+            const Text(
+              'Para encontrarlo rápidamente:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const Text('• Chrome: Ctrl+J'),
+            const Text('• Firefox: Ctrl+J'),
+            const Text('• Safari: Cmd+Option+L'),
+            const Text('• Edge: Ctrl+J'),
+            const SizedBox(height: 12),
+            Text(
+              '💡 Tip: Busca por nombre: "$nombreArchivo"',
+              style: TextStyle(
+                color: Colors.blue.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
       ),
     );
   }

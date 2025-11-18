@@ -9,7 +9,8 @@ class SupabaseExportService {
   /// URL base de las Edge Functions de Supabase
   /// Reemplaza esto con tu URL real de Supabase
   static const String _supabaseUrl = 'https://mvtjiqpqpbwdmjwlwjjk.supabase.co';
-  static const String _anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dGppcXBxcGJ3ZG1qd2x3amprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0ODY2MDksImV4cCI6MjA3OTA2MjYwOX0.tW6GHZa8391RgrQHWKUz0eIwLCpFnTsevLYSLxrLqis';
+  static const String _anonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dGppcXBxcGJ3ZG1qd2x3amprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0ODY2MDksImV4cCI6MjA3OTA2MjYwOX0.tW6GHZa8391RgrQHWKUz0eIwLCpFnTsevLYSLxrLqis';
 
   /// Exporta la copia de seguridad completa usando Supabase Edge Function
   /// Compatible con iOS Safari y todos los navegadores
@@ -72,8 +73,9 @@ class SupabaseExportService {
         final downloadUrl = html.Url.createObjectUrlFromBlob(blob);
 
         // Crear enlace y forzar descarga
+        final fileName = _generateBackupFileName();
         final anchor = html.AnchorElement(href: downloadUrl)
-          ..setAttribute('download', _generateBackupFileName())
+          ..setAttribute('download', fileName)
           ..style.display = 'none';
 
         html.document.body?.children.add(anchor);
@@ -82,6 +84,9 @@ class SupabaseExportService {
         // Limpiar
         html.document.body?.children.remove(anchor);
         html.Url.revokeObjectUrl(downloadUrl);
+
+        // Mostrar mensaje con información de descarga
+        _showDownloadSuccessMessage(fileName);
 
         debugPrint(
           'Copia de seguridad exportada exitosamente via Edge Function',
@@ -124,8 +129,9 @@ class SupabaseExportService {
         final downloadUrl = html.Url.createObjectUrlFromBlob(blob);
 
         // Crear enlace y forzar descarga
+        final fileName = 'movimientos_hogar_$monthName.json';
         final anchor = html.AnchorElement(href: downloadUrl)
-          ..setAttribute('download', 'movimientos_hogar_$monthName.json')
+          ..setAttribute('download', fileName)
           ..style.display = 'none';
 
         html.document.body?.children.add(anchor);
@@ -134,6 +140,9 @@ class SupabaseExportService {
         // Limpiar
         html.document.body?.children.remove(anchor);
         html.Url.revokeObjectUrl(downloadUrl);
+
+        // Mostrar mensaje con información de descarga
+        _showDownloadSuccessMessage(fileName);
 
         debugPrint(
           'Movimientos del hogar exportados exitosamente via Edge Function',
@@ -165,6 +174,38 @@ class SupabaseExportService {
     // Esta función mantiene la lógica existente para móvil
     // Lógica existente para guardar en almacenamiento local
     debugPrint('Exportación móvil de hogar implementada separadamente');
+  }
+
+  /// Muestra un mensaje de éxito con información sobre la descarga
+  static void _showDownloadSuccessMessage(String fileName) {
+    // Mensajes en consola para desarrollador
+    debugPrint('✅ Archivo descargado exitosamente: $fileName');
+    debugPrint(
+      '📁 Ubicación: Carpeta de descargas predeterminada del navegador',
+    );
+
+    // Mensajes en consola del navegador para usuario
+    if (kIsWeb) {
+      html.window.console.log('🎉 ¡EXPORTACIÓN COMPLETADA!');
+      html.window.console.log('📄 Archivo: $fileName');
+      html.window.console.log(
+        '📁 Ubicación: Carpeta de descargas de tu navegador',
+      );
+      html.window.console.log('🔍 Si no encuentras el archivo:');
+      html.window.console.log(
+        '   • Chrome: Presiona Ctrl+J o ve a chrome://downloads/',
+      );
+      html.window.console.log(
+        '   • Firefox: Presiona Ctrl+J o ve a about:downloads',
+      );
+      html.window.console.log('   • Safari: Presiona Cmd+Option+L');
+      html.window.console.log(
+        '   • Edge: Presiona Ctrl+J o ve a edge://downloads/',
+      );
+      html.window.console.log(
+        '💡 Tip: Puedes buscar el archivo por nombre: $fileName',
+      );
+    }
   }
 
   /// Genera nombre de archivo para copia de seguridad
