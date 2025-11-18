@@ -13,6 +13,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// Import para Supabase Export Service
+import 'supabase_export.dart';
+
 // Import condicional para web
 import 'package:universal_html/html.dart' as html;
 
@@ -3340,11 +3343,12 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
       final nombre =
           'movimientos_hogar_${DateFormat('MMMM_yyyy', 'es').format(mes)}.json';
       final jsonStr = const JsonEncoder.withIndent('  ').convert(lista);
-      final bytesJson = utf8.encode(jsonStr);
-
       if (kIsWeb) {
         // Descargar directamente en web
-        await descargarArchivoWeb(Uint8List.fromList(bytesJson), nombre);
+        await SupabaseExportService.exportHomeFinanceMovements(
+          lista.map((m) => Map<String, dynamic>.from(m)).toList(),
+          DateFormat('MMMM_yyyy', 'es').format(mes),
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Archivo descargado: $nombre')),
@@ -6336,8 +6340,7 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
         );
       }
       final cadenaJson = jsonEncode(todosLosDatos);
-      final bytesJson = utf8.encode(cadenaJson);
-
+      
       final fechaFormateada = DateFormat(
         'yyyy-MM-dd_HH-mm-ss',
       ).format(DateTime.now());
@@ -6345,7 +6348,9 @@ class _EstadoPantallaCopiaSeguridad extends State<PantallaCopiaSeguridad> {
 
       if (kIsWeb) {
         // Descargar directamente en web
-        await descargarArchivoWeb(Uint8List.fromList(bytesJson), nombreArchivo);
+        await SupabaseExportService.exportBackupComplete(
+          todosLosDatos.map((key, value) => MapEntry(key.toString(), value)),
+        );
         _mostrarSnackbar(
           '¡Exportación exitosa! Archivo descargado: $nombreArchivo',
           esError: false,
