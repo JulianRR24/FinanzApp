@@ -535,65 +535,79 @@ class EstadoPantallaInicio extends State<PantallaInicio>
   }
 
   Widget _construirTarjetaResumenMensual(Map<String, double> resumen) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Resumen de ${DateFormat.yMMMM('es').format(DateTime.now())}',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 24),
-            _construirFilaResumen(
-              'Ingresos',
-              resumen['ingresos']!,
-              Colors.green.shade600,
-            ),
-            _construirFilaResumen(
-              'Gastos',
-              resumen['gastos']!,
-              Colors.red.shade600,
-            ),
-            const Divider(height: 24),
-            _construirFilaResumen(
-              'Balance del Mes',
-              resumen['balance']!,
-              Theme.of(context).textTheme.bodyLarge!.color!,
-              esNegrita: true,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Asegurarse de que el resumen tenga todos los campos necesarios
+  final ingresos = resumen['ingresos'] ?? 0.0;
+  final gastos = resumen['gastos'] ?? 0.0;
+  final balance = resumen['balance'] ?? 0.0;
 
-  Widget _construirFilaResumen(
-    String titulo,
-    double monto,
-    Color color, {
-    bool esNegrita = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  return Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(titulo, style: Theme.of(context).textTheme.bodyLarge),
           Text(
-            formatoMoneda.format(monto),
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: color,
-              fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
-            ),
+            'Resumen de ${DateFormat.yMMMM('es').format(DateTime.now())}',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ) ?? const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const Divider(height: 24),
+          _construirFilaResumen(
+            'Ingresos',
+            ingresos,
+            Colors.green.shade600,
+          ),
+          _construirFilaResumen(
+            'Gastos Totales',
+            gastos,
+            Colors.red.shade600,
+          ),
+
+          const Divider(height: 24),
+          _construirFilaResumen(
+            'Balance del Mes',
+            balance,
+            balance >= 0 ? Colors.green.shade600 : Colors.red.shade600,
+            esNegrita: true,
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
+
+Widget _construirFilaResumen(
+  String titulo,
+  double monto,
+  Color color, {
+  bool esNegrita = false,
+  double? fontSize,
+}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          titulo,
+          style: TextStyle(
+            fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
+            fontSize: fontSize ?? 16,
+          ),
+        ),
+        Text(
+          formatoMoneda.format(monto),  // Usar el formateador de moneda
+          style: TextStyle(
+            color: color,
+            fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
+            fontSize: fontSize ?? 16,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _construirListaCuentasReordenables(
     List<MapEntry<int, dynamic>> accounts,
@@ -2173,25 +2187,45 @@ class EstadoPantallaHistorialMovimientos
     );
   }
 
-  Map<String, double> calcularResumenMensual(DateTime mes) {
-    double ingresos = 0, gastos = 0, transferencias = 0;
-    for (var mov in cajaMovimientos.values) {
-      final fecha = DateTime.parse(mov['date']);
-      if (fecha.month == mes.month && fecha.year == mes.year) {
-        final monto = mov['amount'] as double;
-        if (mov['type'] == 'Ingreso') ingresos += monto;
-        if (mov['type'] == 'Gasto') gastos += monto;
-        if (mov['type'] == 'Transferencia') transferencias += monto;
+// 1. Asegurémonos de que el método calcularResumenMensual esté correcto
+Map<String, double> calcularResumenMensual(DateTime mes) {
+  double ingresos = 0, gastos = 0, transferencias = 0;
+  double gastosPersonales = 0, gastosHogar = 0;
+  
+  for (var mov in cajaMovimientos.values) {
+    final fecha = DateTime.parse(mov['date']);
+    if (fecha.month == mes.month && fecha.year == mes.year) {
+      final monto = mov['amount'] as double;
+      if (mov['type'] == 'Ingreso') {
+        ingresos += monto;
+      } else if (mov['type'] == 'Gasto') {
+        gastos += monto;
+        // Asegurarse de que el tipo de gasto se está leyendo correctamente
+        final tipoGasto = mov['tipoGasto'] as String?;
+        if (tipoGasto == 'Hogar') {
+          gastosHogar += monto;
+        } else if (tipoGasto == 'Personal') {
+          gastosPersonales += monto;
+        } else {
+          // Si no tiene tipo, lo contamos como personal (o como prefieras)
+          gastosPersonales += monto;
+        }
+      } else if (mov['type'] == 'Transferencia') {
+        transferencias += monto;
       }
     }
-    double balance = ingresos - gastos;
-    return {
-      'ingresos': ingresos,
-      'gastos': gastos,
-      'movimientos': ingresos + gastos + (transferencias * 2),
-      'balance': balance,
-    };
   }
+  
+  double balance = ingresos - gastos;
+  return {
+    'ingresos': ingresos,
+    'gastos': gastos,
+    'gastosPersonales': gastosPersonales,
+    'gastosHogar': gastosHogar,
+    'movimientos': ingresos + gastos + (transferencias * 2),
+    'balance': balance,
+  };
+}
 
   Future<void> exportarMovimientosAExcel(DateTime mes) async {
     final excel = Excel.createExcel();
@@ -2464,9 +2498,27 @@ class EstadoPantallaHistorialMovimientos
               Colors.green.shade600,
             ),
             _construirFilaResumenHistorial(
-              'Gastos',
+              'Gastos Totales',
               resumen['gastos']!,
               TemaApp._colorError,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0, top: 4, bottom: 4),
+              child: _construirFilaResumenHistorial(
+                '• Personales',
+                resumen['gastosPersonales']!,
+                Colors.orange.shade600,
+                fontSize: 14,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0, bottom: 4),
+              child: _construirFilaResumenHistorial(
+                '• Hogar',
+                resumen['gastosHogar']!,
+                Colors.purple.shade600,
+                fontSize: 14,
+              ),
             ),
             _construirFilaResumenHistorial(
               'Balance del Mes',
@@ -2478,7 +2530,7 @@ class EstadoPantallaHistorialMovimientos
             _construirFilaResumenHistorial(
               'Total Movimientos',
               resumen['movimientos']!,
-              Theme.of(context).colorScheme.primary,
+              Theme.of(context).textTheme.bodyLarge!.color!,
             ),
           ],
         ),
@@ -2489,20 +2541,26 @@ class EstadoPantallaHistorialMovimientos
   Widget _construirFilaResumenHistorial(
     String titulo,
     double monto,
-    Color color,
-  ) {
+    Color color, {
+    double? fontSize,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(titulo, style: const TextStyle(fontSize: 16)),
+          Text(
+            titulo, 
+            style: TextStyle(
+              fontSize: fontSize ?? 16,
+            ),
+          ),
           Text(
             formatoMoneda.format(monto),
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: fontSize ?? 16,
             ),
           ),
         ],
@@ -5177,11 +5235,12 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
     );
   }
 
-  Padding _buildSummaryRow(
+  Widget _buildSummaryRow(
     String label,
     double value, {
     Color? color,
     bool isBold = false,
+    double? fontSize,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -5192,6 +5251,7 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
             label,
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              fontSize: fontSize,
             ),
           ),
           Text(
@@ -5199,6 +5259,7 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
             style: TextStyle(
               color: color,
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              fontSize: fontSize,
             ),
           ),
         ],
