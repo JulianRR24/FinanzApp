@@ -535,79 +535,77 @@ class EstadoPantallaInicio extends State<PantallaInicio>
   }
 
   Widget _construirTarjetaResumenMensual(Map<String, double> resumen) {
-  // Asegurarse de que el resumen tenga todos los campos necesarios
-  final ingresos = resumen['ingresos'] ?? 0.0;
-  final gastos = resumen['gastos'] ?? 0.0;
-  final balance = resumen['balance'] ?? 0.0;
+    // Asegurarse de que el resumen tenga todos los campos necesarios
+    final ingresos = resumen['ingresos'] ?? 0.0;
+    final gastos = resumen['gastos'] ?? 0.0;
+    final balance = resumen['balance'] ?? 0.0;
 
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Resumen de ${DateFormat.yMMMM('es').format(DateTime.now())}',
+              style:
+                  Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ) ??
+                  const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const Divider(height: 24),
+            _construirFilaResumen('Ingresos', ingresos, Colors.green.shade600),
+            _construirFilaResumen(
+              'Gastos Totales',
+              gastos,
+              Colors.red.shade600,
+            ),
+
+            const Divider(height: 24),
+            _construirFilaResumen(
+              'Balance del Mes',
+              balance,
+              balance >= 0 ? Colors.green.shade600 : Colors.red.shade600,
+              esNegrita: true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _construirFilaResumen(
+    String titulo,
+    double monto,
+    Color color, {
+    bool esNegrita = false,
+    double? fontSize,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Resumen de ${DateFormat.yMMMM('es').format(DateTime.now())}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ) ?? const TextStyle(fontWeight: FontWeight.bold),
+            titulo,
+            style: TextStyle(
+              fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
+              fontSize: fontSize ?? 16,
+            ),
           ),
-          const Divider(height: 24),
-          _construirFilaResumen(
-            'Ingresos',
-            ingresos,
-            Colors.green.shade600,
-          ),
-          _construirFilaResumen(
-            'Gastos Totales',
-            gastos,
-            Colors.red.shade600,
-          ),
-
-          const Divider(height: 24),
-          _construirFilaResumen(
-            'Balance del Mes',
-            balance,
-            balance >= 0 ? Colors.green.shade600 : Colors.red.shade600,
-            esNegrita: true,
+          Text(
+            formatoMoneda.format(monto), // Usar el formateador de moneda
+            style: TextStyle(
+              color: color,
+              fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
+              fontSize: fontSize ?? 16,
+            ),
           ),
         ],
       ),
-    ),
-  );
-}
-
-Widget _construirFilaResumen(
-  String titulo,
-  double monto,
-  Color color, {
-  bool esNegrita = false,
-  double? fontSize,
-}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          titulo,
-          style: TextStyle(
-            fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
-            fontSize: fontSize ?? 16,
-          ),
-        ),
-        Text(
-          formatoMoneda.format(monto),  // Usar el formateador de moneda
-          style: TextStyle(
-            color: color,
-            fontWeight: esNegrita ? FontWeight.bold : FontWeight.normal,
-            fontSize: fontSize ?? 16,
-          ),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   Widget _construirListaCuentasReordenables(
     List<MapEntry<int, dynamic>> accounts,
@@ -1452,7 +1450,7 @@ class EstadoPantallaEditarCuenta extends State<PantallaEditarCuenta> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: type,
+                    initialValue: type,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de Cuenta',
                     ),
@@ -1641,7 +1639,7 @@ class EstadoPantallaAgregarCuentaVinculada
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: accountType,
+              initialValue: accountType,
               decoration: const InputDecoration(labelText: 'Tipo de Cuenta'),
               items: [
                 'Ahorro',
@@ -1766,7 +1764,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DropdownButtonFormField<String>(
-                value: tipo,
+                initialValue: tipo,
                 decoration: const InputDecoration(
                   labelText: 'Tipo de Movimiento',
                 ),
@@ -1782,7 +1780,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
               const SizedBox(height: 16),
               if (tipo == 'Gasto') ...[
                 DropdownButtonFormField<String>(
-                  value: tipoGasto,
+                  initialValue: tipoGasto,
                   decoration: const InputDecoration(labelText: 'Tipo de Gasto'),
                   items: const [
                     DropdownMenuItem(
@@ -1819,7 +1817,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
               const SizedBox(height: 16),
               if (tipo != 'Transferencia')
                 DropdownButtonFormField<int>(
-                  value: cuentaSeleccionada,
+                  initialValue: cuentaSeleccionada,
                   hint: const Text('Seleccionar cuenta'),
                   decoration: const InputDecoration(labelText: 'Cuenta'),
                   isExpanded: true,
@@ -1839,7 +1837,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
                 ),
               if (tipo == 'Transferencia') ...[
                 DropdownButtonFormField<int>(
-                  value: cuentaSeleccionada,
+                  initialValue: cuentaSeleccionada,
                   hint: const Text('Cuenta Origen'),
                   decoration: const InputDecoration(labelText: 'Desde'),
                   isExpanded: true,
@@ -1858,7 +1856,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int>(
-                  value: cuentaDestino,
+                  initialValue: cuentaDestino,
                   hint: const Text('Cuenta Destino'),
                   decoration: const InputDecoration(labelText: 'Hacia'),
                   isExpanded: true,
@@ -2083,7 +2081,7 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
             const SizedBox(height: 16),
             if (tipo == 'Gasto') ...[
               DropdownButtonFormField<String>(
-                value: tipoGasto,
+                initialValue: tipoGasto,
                 decoration: const InputDecoration(labelText: 'Tipo de Gasto'),
                 items: const [
                   DropdownMenuItem(value: 'Personal', child: Text('Personal')),
@@ -2187,45 +2185,45 @@ class EstadoPantallaHistorialMovimientos
     );
   }
 
-// 1. Asegurémonos de que el método calcularResumenMensual esté correcto
-Map<String, double> calcularResumenMensual(DateTime mes) {
-  double ingresos = 0, gastos = 0, transferencias = 0;
-  double gastosPersonales = 0, gastosHogar = 0;
-  
-  for (var mov in cajaMovimientos.values) {
-    final fecha = DateTime.parse(mov['date']);
-    if (fecha.month == mes.month && fecha.year == mes.year) {
-      final monto = mov['amount'] as double;
-      if (mov['type'] == 'Ingreso') {
-        ingresos += monto;
-      } else if (mov['type'] == 'Gasto') {
-        gastos += monto;
-        // Asegurarse de que el tipo de gasto se está leyendo correctamente
-        final tipoGasto = mov['tipoGasto'] as String?;
-        if (tipoGasto == 'Hogar') {
-          gastosHogar += monto;
-        } else if (tipoGasto == 'Personal') {
-          gastosPersonales += monto;
-        } else {
-          // Si no tiene tipo, lo contamos como personal (o como prefieras)
-          gastosPersonales += monto;
+  // 1. Asegurémonos de que el método calcularResumenMensual esté correcto
+  Map<String, double> calcularResumenMensual(DateTime mes) {
+    double ingresos = 0, gastos = 0, transferencias = 0;
+    double gastosPersonales = 0, gastosHogar = 0;
+
+    for (var mov in cajaMovimientos.values) {
+      final fecha = DateTime.parse(mov['date']);
+      if (fecha.month == mes.month && fecha.year == mes.year) {
+        final monto = mov['amount'] as double;
+        if (mov['type'] == 'Ingreso') {
+          ingresos += monto;
+        } else if (mov['type'] == 'Gasto') {
+          gastos += monto;
+          // Asegurarse de que el tipo de gasto se está leyendo correctamente
+          final tipoGasto = mov['tipoGasto'] as String?;
+          if (tipoGasto == 'Hogar') {
+            gastosHogar += monto;
+          } else if (tipoGasto == 'Personal') {
+            gastosPersonales += monto;
+          } else {
+            // Si no tiene tipo, lo contamos como personal (o como prefieras)
+            gastosPersonales += monto;
+          }
+        } else if (mov['type'] == 'Transferencia') {
+          transferencias += monto;
         }
-      } else if (mov['type'] == 'Transferencia') {
-        transferencias += monto;
       }
     }
+
+    double balance = ingresos - gastos;
+    return {
+      'ingresos': ingresos,
+      'gastos': gastos,
+      'gastosPersonales': gastosPersonales,
+      'gastosHogar': gastosHogar,
+      'movimientos': ingresos + gastos + (transferencias * 2),
+      'balance': balance,
+    };
   }
-  
-  double balance = ingresos - gastos;
-  return {
-    'ingresos': ingresos,
-    'gastos': gastos,
-    'gastosPersonales': gastosPersonales,
-    'gastosHogar': gastosHogar,
-    'movimientos': ingresos + gastos + (transferencias * 2),
-    'balance': balance,
-  };
-}
 
   Future<void> exportarMovimientosAExcel(DateTime mes) async {
     final excel = Excel.createExcel();
@@ -2549,12 +2547,7 @@ Map<String, double> calcularResumenMensual(DateTime mes) {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            titulo, 
-            style: TextStyle(
-              fontSize: fontSize ?? 16,
-            ),
-          ),
+          Text(titulo, style: TextStyle(fontSize: fontSize ?? 16)),
           Text(
             formatoMoneda.format(monto),
             style: TextStyle(
@@ -3115,7 +3108,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: tipo,
+                      initialValue: tipo,
                       items: const [
                         DropdownMenuItem(
                           value: 'Ingreso',
@@ -3128,7 +3121,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: propietario,
+                      initialValue: propietario,
                       items: const [
                         DropdownMenuItem(
                           value: 'yo',
@@ -3147,7 +3140,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     const SizedBox(height: 8),
                     if (tipo == 'Gasto')
                       DropdownButtonFormField<String>(
-                        value: tipoGasto,
+                        initialValue: tipoGasto,
                         items: const [
                           DropdownMenuItem(
                             value: 'Hogar',
@@ -4093,7 +4086,7 @@ class EstadoPantallaDebitos extends State<PantallaDebitos> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    value: diaSeleccionado,
+                    initialValue: diaSeleccionado,
                     decoration: const InputDecoration(
                       labelText: 'Día del cobro',
                     ),
@@ -4110,7 +4103,7 @@ class EstadoPantallaDebitos extends State<PantallaDebitos> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    value: idCuentaSeleccionada,
+                    initialValue: idCuentaSeleccionada,
                     hint: const Text('Seleccionar cuenta a debitar'),
                     decoration: const InputDecoration(
                       labelText: 'Cuenta de Origen',
@@ -4471,7 +4464,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _tipoFrecuencia,
+                    initialValue: _tipoFrecuencia,
                     decoration: const InputDecoration(labelText: 'Frecuencia'),
                     items: ['Una vez', 'Mensual', 'Anual']
                         .map(
@@ -4520,7 +4513,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     ),
                   if (_tipoFrecuencia == 'Mensual')
                     DropdownButtonFormField<int>(
-                      value: _diaSeleccionado,
+                      initialValue: _diaSeleccionado,
                       decoration: const InputDecoration(
                         labelText: 'Día del mes',
                       ),
@@ -4540,7 +4533,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     ),
                   if (_tipoFrecuencia == 'Anual') ...[
                     DropdownButtonFormField<int>(
-                      value: _mesSeleccionado,
+                      initialValue: _mesSeleccionado,
                       decoration: const InputDecoration(labelText: 'Mes'),
                       items: List.generate(12, (i) => i + 1)
                           .map(
@@ -4560,7 +4553,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
-                      value: _diaSeleccionado,
+                      initialValue: _diaSeleccionado,
                       decoration: const InputDecoration(
                         labelText: 'Día del mes',
                       ),
@@ -5044,7 +5037,7 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: nuevaCategoria,
+                  initialValue: nuevaCategoria,
                   decoration: const InputDecoration(labelText: 'Categoría'),
                   items: ['Gasto', 'Ahorro', 'Inversion']
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -5559,7 +5552,7 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: esHogar
+              initialValue: esHogar
                   ? categoriaSeleccionadaHogar
                   : categoriaSeleccionadaPersonal,
               decoration: const InputDecoration(labelText: 'Categoría'),
@@ -5942,7 +5935,7 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: anioSeleccionado,
+                    initialValue: anioSeleccionado,
                     decoration: const InputDecoration(labelText: 'Año Fiscal'),
                     onChanged: (nuevo) =>
                         setState(() => anioSeleccionado = nuevo!),
@@ -6837,7 +6830,7 @@ class EstadoPantallaDepuracionHive extends State<PantallaDepuracionHive> {
           children: [
             DropdownButtonFormField<String>(
               hint: const Text('Selecciona una caja Hive'),
-              value: cajaSeleccionada,
+              initialValue: cajaSeleccionada,
               isExpanded: true,
               items: cajas
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
