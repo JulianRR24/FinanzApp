@@ -8,9 +8,9 @@ import 'package:universal_html/html.dart' as html;
 class SupabaseExportService {
   /// URL base de las Edge Functions de Supabase
   /// Reemplaza esto con tu URL real de Supabase
-  static const String _supabaseUrl = 'https://mvtjiqpqpbwdmjwlwjjk.supabase.co';
+  static const String _supabaseUrl = 'https://hmtnewymuanlvdbfdmrh.supabase.co';
   static const String _anonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dGppcXBxcGJ3ZG1qd2x3amprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0ODY2MDksImV4cCI6MjA3OTA2MjYwOX0.tW6GHZa8391RgrQHWKUz0eIwLCpFnTsevLYSLxrLqis';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtdG5ld3ltdWFubHZkYmZkbXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxODE3ODcsImV4cCI6MjA3OTc1Nzc4N30.midJmbMWczpGBRnrXHzjNS1xkeu7wowT9JTWKeocGyU';
 
   /// Exporta la copia de seguridad completa usando Supabase Edge Function
   /// Compatible con iOS Safari y todos los navegadores

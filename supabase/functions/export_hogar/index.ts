@@ -8,7 +8,7 @@
  * que se realiza desde la pantalla "Finanzas del Hogar".
  */
 
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
+import { serve } from "jsr:@supabase/functions"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
