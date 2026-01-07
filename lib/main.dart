@@ -1693,6 +1693,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
   String tipoGasto = 'Personal';
   int? cuentaSeleccionada;
   int? cuentaDestino;
+  int? metaSeleccionada; // NUEVO
   String descripcion = '';
   DateTime fechaSeleccionada = DateTime.now();
   bool yaReflejado = false;
@@ -1713,6 +1714,8 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
       'date': fechaSeleccionada.toIso8601String(),
       'reflejado': yaReflejado,
       'tipoGasto': tipo == 'Gasto' ? tipoGasto : null,
+      'idMetaPresupuesto': tipo == 'Gasto' ? metaSeleccionada : null, // NUEVO
+      'esMetaHogar': tipo == 'Gasto' ? (tipoGasto == 'Hogar') : null, // NUEVO
     };
 
     if (tipo == 'Ingreso' || tipo == 'Gasto') {
@@ -1754,6 +1757,23 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
     final orderedAccounts = getOrderedAccounts();
     // --- FIN: CAMBIO APLICADO (SECCIÓN 3) ---
 
+    // Preparar lista de metas según selección
+    List<DropdownMenuItem<int>> menuItemsMetas = [];
+    if (tipo == 'Gasto') {
+      final cajaMetas = Hive.box(tipoGasto == 'Hogar' ? 'metasHogar' : 'metas');
+      final metas = cajaMetas.toMap();
+      menuItemsMetas = metas.entries.map((entry) {
+        final meta = entry.value;
+        return DropdownMenuItem<int>(
+          value: entry.key,
+          child: Text(
+            '${meta['nombre']} (${meta['categoria']})',
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList();
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Nuevo Movimiento')),
       body: SingleChildScrollView(
@@ -1775,6 +1795,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
                   tipo = val!;
                   cuentaSeleccionada = null;
                   cuentaDestino = null;
+                  metaSeleccionada = null;
                 }),
               ),
               const SizedBox(height: 16),
@@ -1790,10 +1811,26 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
                     DropdownMenuItem(value: 'Hogar', child: Text('Hogar')),
                   ],
                   onChanged: (String? value) {
-                    setState(() => tipoGasto = value ?? 'Personal');
+                    setState(() {
+                      tipoGasto = value ?? 'Personal';
+                      metaSeleccionada = null;
+                    });
                   },
                 ),
                 const SizedBox(height: 16),
+                if (menuItemsMetas.isNotEmpty) ...[
+                  DropdownButtonFormField<int>(
+                    value: metaSeleccionada,
+                    decoration: const InputDecoration(
+                      labelText: 'Vincular a Meta (Opcional)',
+                      helperText: 'Suma al presupuesto',
+                    ),
+                    items: menuItemsMetas,
+                    onChanged: (val) => setState(() => metaSeleccionada = val),
+                    isExpanded: true,
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ],
               TextFormField(
                 controller: controladorMonto,
@@ -5503,6 +5540,24 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
     );
   }
 
+  double _calcularGastoMensualMeta(int idMeta, bool esHogar) {
+    final cajaMovimientos = Hive.box('movimientos');
+    final ahora = DateTime.now();
+    double total = 0;
+
+    for (var mov in cajaMovimientos.values) {
+      if (mov['type'] == 'Gasto' &&
+          mov['idMetaPresupuesto'] == idMeta &&
+          mov['esMetaHogar'] == esHogar) {
+        final fechaMov = DateTime.parse(mov['date']);
+        if (fechaMov.year == ahora.year && fechaMov.month == ahora.month) {
+          total += mov['amount'];
+        }
+      }
+    }
+    return total;
+  }
+
   Card _buildAddGoalCard(bool esHogar) {
     return Card(
       child: Padding(
@@ -5628,6 +5683,13 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
               return '$resto mes(es)';
             }
 
+            // Nuevo: Calcular progreso
+            final gastado = _calcularGastoMensualMeta(llave, esHogar);
+            final progreso = mensual > 0 ? gastado / mensual : 0.0;
+            final colorProgreso = progreso >= 1.0
+                ? Colors.red
+                : (progreso >= 0.8 ? Colors.orange : Colors.green);
+
             return Card(
               key: ValueKey(llave),
               margin: const EdgeInsets.symmetric(vertical: 5),
@@ -5644,6 +5706,23 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
                         'Mensual: ${formatoMoneda.format(mensual)}$infoAporte',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: progreso > 1 ? 1 : progreso,
+                      backgroundColor: Colors.grey[300],
+                      color: colorProgreso,
+                      minHeight: 8,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Gastado: ${formatoMoneda.format(gastado)} / ${formatoMoneda.format(mensual)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: colorProgreso,
+                      ),
+                    ),
                   ],
                 ),
                 trailing: Text(
