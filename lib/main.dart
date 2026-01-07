@@ -1820,7 +1820,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
                 const SizedBox(height: 16),
                 if (menuItemsMetas.isNotEmpty) ...[
                   DropdownButtonFormField<int>(
-                    value: metaSeleccionada,
+                    initialValue: metaSeleccionada,
                     decoration: const InputDecoration(
                       labelText: 'Vincular a Meta (Opcional)',
                       helperText: 'Suma al presupuesto',
@@ -1989,6 +1989,7 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
   late double montoOriginal;
   late bool reflejadoOriginal;
   late String tipoGasto;
+  int? metaSeleccionada; // NUEVO
   final _controladorMonto = TextEditingController();
   final _controladorDescripcion = TextEditingController();
 
@@ -2002,7 +2003,9 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
     yaReflejado = widget.datosMovimiento['reflejado'] == true;
     montoOriginal = monto;
     reflejadoOriginal = yaReflejado;
+    reflejadoOriginal = yaReflejado;
     tipoGasto = widget.datosMovimiento['tipoGasto'] ?? 'Personal';
+    metaSeleccionada = widget.datosMovimiento['idMetaPresupuesto']; // NUEVO
 
     _controladorMonto.text = monto.toStringAsFixed(0);
     _controladorDescripcion.text = descripcion;
@@ -2086,6 +2089,8 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
       'date': fechaSeleccionada.toIso8601String(),
       'reflejado': yaReflejado,
       'tipoGasto': tipo == 'Gasto' ? tipoGasto : null,
+      'idMetaPresupuesto': tipo == 'Gasto' ? metaSeleccionada : null, // NUEVO
+      'esMetaHogar': tipo == 'Gasto' ? (tipoGasto == 'Hogar') : null, // NUEVO
     });
     Navigator.pop(context);
   }
@@ -2102,6 +2107,23 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
 
   @override
   Widget build(BuildContext context) {
+    // Preparar lista de metas según selección
+    List<DropdownMenuItem<int>> menuItemsMetas = [];
+    if (tipo == 'Gasto') {
+      final cajaMetas = Hive.box(tipoGasto == 'Hogar' ? 'metasHogar' : 'metas');
+      final metas = cajaMetas.toMap();
+      menuItemsMetas = metas.entries.map((entry) {
+        final meta = entry.value;
+        return DropdownMenuItem<int>(
+          value: entry.key,
+          child: Text(
+            '${meta['nombre']} (${meta['categoria']})',
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList();
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Editar Movimiento')),
       body: SingleChildScrollView(
@@ -2129,6 +2151,20 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
                 },
               ),
               const SizedBox(height: 16),
+              // NUEVO: Dropdown para editar meta
+              if (menuItemsMetas.isNotEmpty) ...[
+                DropdownButtonFormField<int>(
+                  value: metaSeleccionada,
+                  decoration: const InputDecoration(
+                    labelText: 'Vincular a Meta (Opcional)',
+                    helperText: 'Suma al presupuesto',
+                  ),
+                  items: menuItemsMetas,
+                  onChanged: (val) => setState(() => metaSeleccionada = val),
+                  isExpanded: true,
+                ),
+                const SizedBox(height: 16),
+              ],
             ],
             TextField(
               controller: _controladorMonto,
