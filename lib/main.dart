@@ -1450,7 +1450,7 @@ class EstadoPantallaEditarCuenta extends State<PantallaEditarCuenta> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    initialValue: type,
+                    value: type,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de Cuenta',
                     ),
@@ -1639,7 +1639,7 @@ class EstadoPantallaAgregarCuentaVinculada
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              initialValue: accountType,
+              value: accountType,
               decoration: const InputDecoration(labelText: 'Tipo de Cuenta'),
               items: [
                 'Ahorro',
@@ -1784,7 +1784,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DropdownButtonFormField<String>(
-                initialValue: tipo,
+                value: tipo,
                 decoration: const InputDecoration(
                   labelText: 'Tipo de Movimiento',
                 ),
@@ -1801,7 +1801,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
               const SizedBox(height: 16),
               if (tipo == 'Gasto') ...[
                 DropdownButtonFormField<String>(
-                  initialValue: tipoGasto,
+                  value: tipoGasto,
                   decoration: const InputDecoration(labelText: 'Tipo de Gasto'),
                   items: const [
                     DropdownMenuItem(
@@ -1820,7 +1820,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
                 const SizedBox(height: 16),
                 if (menuItemsMetas.isNotEmpty) ...[
                   DropdownButtonFormField<int>(
-                    initialValue: metaSeleccionada,
+                    value: metaSeleccionada,
                     decoration: const InputDecoration(
                       labelText: 'Vincular a Meta (Opcional)',
                       helperText: 'Suma al presupuesto',
@@ -1854,7 +1854,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
               const SizedBox(height: 16),
               if (tipo != 'Transferencia')
                 DropdownButtonFormField<int>(
-                  initialValue: cuentaSeleccionada,
+                  value: cuentaSeleccionada,
                   hint: const Text('Seleccionar cuenta'),
                   decoration: const InputDecoration(labelText: 'Cuenta'),
                   isExpanded: true,
@@ -1874,7 +1874,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
                 ),
               if (tipo == 'Transferencia') ...[
                 DropdownButtonFormField<int>(
-                  initialValue: cuentaSeleccionada,
+                  value: cuentaSeleccionada,
                   hint: const Text('Cuenta Origen'),
                   decoration: const InputDecoration(labelText: 'Desde'),
                   isExpanded: true,
@@ -1893,7 +1893,7 @@ class EstadoPantallaAgregarMovimiento extends State<PantallaAgregarMovimiento> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int>(
-                  initialValue: cuentaDestino,
+                  value: cuentaDestino,
                   hint: const Text('Cuenta Destino'),
                   decoration: const InputDecoration(labelText: 'Hacia'),
                   isExpanded: true,
@@ -2140,7 +2140,7 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
             const SizedBox(height: 16),
             if (tipo == 'Gasto') ...[
               DropdownButtonFormField<String>(
-                initialValue: tipoGasto,
+                value: tipoGasto,
                 decoration: const InputDecoration(labelText: 'Tipo de Gasto'),
                 items: const [
                   DropdownMenuItem(value: 'Personal', child: Text('Personal')),
@@ -2154,7 +2154,7 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
               // NUEVO: Dropdown para editar meta
               if (menuItemsMetas.isNotEmpty) ...[
                 DropdownButtonFormField<int>(
-                  initialValue: metaSeleccionada,
+                  value: metaSeleccionada,
                   decoration: const InputDecoration(
                     labelText: 'Vincular a Meta (Opcional)',
                     helperText: 'Suma al presupuesto',
@@ -3181,7 +3181,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: tipo,
+                      value: tipo,
                       items: const [
                         DropdownMenuItem(
                           value: 'Ingreso',
@@ -3194,7 +3194,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      initialValue: propietario,
+                      value: propietario,
                       items: const [
                         DropdownMenuItem(
                           value: 'yo',
@@ -3213,7 +3213,7 @@ class EstadoPantallaFinanzasHogar extends State<PantallaFinanzasHogar> {
                     const SizedBox(height: 8),
                     if (tipo == 'Gasto')
                       DropdownButtonFormField<String>(
-                        initialValue: tipoGasto,
+                        value: tipoGasto,
                         items: const [
                           DropdownMenuItem(
                             value: 'Hogar',
@@ -4159,7 +4159,7 @@ class EstadoPantallaDebitos extends State<PantallaDebitos> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    initialValue: diaSeleccionado,
+                    value: diaSeleccionado,
                     decoration: const InputDecoration(
                       labelText: 'Día del cobro',
                     ),
@@ -4176,7 +4176,7 @@ class EstadoPantallaDebitos extends State<PantallaDebitos> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    initialValue: idCuentaSeleccionada,
+                    value: idCuentaSeleccionada,
                     hint: const Text('Seleccionar cuenta a debitar'),
                     decoration: const InputDecoration(
                       labelText: 'Cuenta de Origen',
@@ -4537,7 +4537,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    initialValue: _tipoFrecuencia,
+                    value: _tipoFrecuencia,
                     decoration: const InputDecoration(labelText: 'Frecuencia'),
                     items: ['Una vez', 'Mensual', 'Anual']
                         .map(
@@ -4586,7 +4586,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     ),
                   if (_tipoFrecuencia == 'Mensual')
                     DropdownButtonFormField<int>(
-                      initialValue: _diaSeleccionado,
+                      value: _diaSeleccionado,
                       decoration: const InputDecoration(
                         labelText: 'Día del mes',
                       ),
@@ -4606,7 +4606,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     ),
                   if (_tipoFrecuencia == 'Anual') ...[
                     DropdownButtonFormField<int>(
-                      initialValue: _mesSeleccionado,
+                      value: _mesSeleccionado,
                       decoration: const InputDecoration(labelText: 'Mes'),
                       items: List.generate(12, (i) => i + 1)
                           .map(
@@ -4626,7 +4626,7 @@ class EstadoPantallaRecordatorios extends State<PantallaRecordatorios> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
-                      initialValue: _diaSeleccionado,
+                      value: _diaSeleccionado,
                       decoration: const InputDecoration(
                         labelText: 'Día del mes',
                       ),
@@ -5110,7 +5110,7 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: nuevaCategoria,
+                  value: nuevaCategoria,
                   decoration: const InputDecoration(labelText: 'Categoría'),
                   items: ['Gasto', 'Ahorro', 'Inversion']
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -5643,7 +5643,7 @@ class EstadoPantallaPresupuesto extends State<PantallaPresupuesto>
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              initialValue: esHogar
+              value: esHogar
                   ? categoriaSeleccionadaHogar
                   : categoriaSeleccionadaPersonal,
               decoration: const InputDecoration(labelText: 'Categoría'),
@@ -6050,7 +6050,7 @@ class EstadoPantallaResumenUVT extends State<PantallaResumenUVT> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    initialValue: anioSeleccionado,
+                    value: anioSeleccionado,
                     decoration: const InputDecoration(labelText: 'Año Fiscal'),
                     onChanged: (nuevo) =>
                         setState(() => anioSeleccionado = nuevo!),
@@ -6945,7 +6945,7 @@ class EstadoPantallaDepuracionHive extends State<PantallaDepuracionHive> {
           children: [
             DropdownButtonFormField<String>(
               hint: const Text('Selecciona una caja Hive'),
-              initialValue: cajaSeleccionada,
+              value: cajaSeleccionada,
               isExpanded: true,
               items: cajas
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
