@@ -2154,7 +2154,7 @@ class EstadoPantallaEditarMovimiento extends State<PantallaEditarMovimiento> {
               // NUEVO: Dropdown para editar meta
               if (menuItemsMetas.isNotEmpty) ...[
                 DropdownButtonFormField<int>(
-                  value: metaSeleccionada,
+                  initialValue: metaSeleccionada,
                   decoration: const InputDecoration(
                     labelText: 'Vincular a Meta (Opcional)',
                     helperText: 'Suma al presupuesto',

@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.finanzas_personales_app"
-    compileSdk = 35
+    compileSdk = 36
     
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -20,7 +20,7 @@ android {
     defaultConfig {
         applicationId = "com.example.finanzas_personales_app"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
         
